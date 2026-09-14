@@ -7,10 +7,12 @@ using ModelingToolkit
 const D = Differential(t)
 
 include("Interfaces.jl")
+include("Functions.jl")
 include("Waterway.jl")
 
 export t, D
 export Contact, connect_hydraulic
-export Reservoir
+export darcy_factor, darcy_friction
+export Reservoir, Pipe, PressureBoundary
 
 end # module
