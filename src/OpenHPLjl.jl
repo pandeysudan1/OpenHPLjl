@@ -15,6 +15,6 @@ export t, D
 export Contact, connect_hydraulic
 export darcy_factor, darcy_friction
 export Reservoir, Pipe, SurgeTank, PressureBoundary
-export Turbine
+export Turbine, SimpleGenerator
 
 end # module
