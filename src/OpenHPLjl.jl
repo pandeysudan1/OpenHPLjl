@@ -3,9 +3,13 @@ module OpenHPLjl
 
 using ModelingToolkit
 
+@independent_variables t
+const D = Differential(t)
+
 include("Interfaces.jl")
 include("Waterway.jl")
 
+export t, D
 export Contact, connect_hydraulic
 export Reservoir
 
