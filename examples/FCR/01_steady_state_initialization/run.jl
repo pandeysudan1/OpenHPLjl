@@ -5,13 +5,24 @@ using SciMLBase
 
 println("FCR Study 01 — full component initialization")
 
-# First canonical nonlinear hydro-to-grid assembly.
-# The initial target is a moderate operating point near 0.5 pu electrical power.
+# Canonical nonlinear hydro-to-grid equilibrium.
+# Keep the original 55 m^3/s waterway target, but make the hydraulic,
+# mechanical and electrical operating points mutually consistent.
+Q0 = 55.0
+h_surge0 = 117.63163567224585
+opening0 = 0.5541282862699871
+delta0 = 0.5208343152234535
+
+println("equilibrium_Q_m3s = ", Q0)
+println("equilibrium_surge_h_m = ", h_surge0)
+println("equilibrium_opening = ", opening0)
+println("equilibrium_delta_rad = ", delta0)
+
 @named reservoir = ConstantLevelReservoir(h = 120.0)
-@named headrace = HydroPipe(H = 0.0, L = 1200.0, D_i = 4.0, D_o = 4.0, Vdot0 = 55.0)
-@named surge = SurgeTank(H = 90.0, L = 90.0, diameter = 6.0, h0 = 90.0, Vdot0 = 0.0)
-@named penstock = HydroPipe(H = 90.0, L = 700.0, D_i = 3.5, D_o = 3.5, Vdot0 = 55.0)
-@named turbine = HydroTurbineShaft(C_v = 0.07, opening = 0.80, eta_h = 0.90)
+@named headrace = HydroPipe(H = 0.0, L = 1200.0, D_i = 4.0, D_o = 4.0, Vdot0 = Q0)
+@named surge = SurgeTank(H = 90.0, L = 90.0, diameter = 6.0, h0 = h_surge0, Vdot0 = 0.0)
+@named penstock = HydroPipe(H = 90.0, L = 700.0, D_i = 3.5, D_o = 3.5, Vdot0 = Q0)
+@named turbine = HydroTurbineShaft(C_v = 0.07, opening = opening0, eta_h = 0.90)
 @named tail = PressureBoundary(p = 101325.0)
 @named shaft = RigidShaft()
 @named generator = ClassicalSynchronousGenerator(
@@ -21,7 +32,7 @@ println("FCR Study 01 — full component initialization")
     f_grid = 50.0,
     poles = 12,
     V0 = 1.0,
-    delta0 = 0.25,
+    delta0 = delta0,
 )
 @named line = LosslessLine(X = 0.50)
 @named grid = InfiniteBus(V = 1.0, theta = 0.0)
@@ -49,8 +60,7 @@ println("Compiling ModelingToolkit system …")
 sys = mtkcompile(plant)
 println("Compiled: ", length(unknowns(sys)), " unknowns, ", length(equations(sys)), " equations")
 
-# Run long enough to expose whether the chosen initialization is dynamically
-# consistent and whether hydraulic/mechanical/electrical states remain finite.
+# A true steady equilibrium should remain stationary over this interval.
 prob = ODEProblem(sys, [], (0.0, 20.0))
 sol = solve(prob, Rodas5P(); abstol = 1e-7, reltol = 1e-7, saveat = 0.1)
 
