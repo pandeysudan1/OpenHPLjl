@@ -92,6 +92,68 @@ When `use_load_input=true`, the assembled plant must provide `P_load`.
 end
 
 """
+    SMIBGenerator(; name, H=4.0, damping=1.0, f_grid=50.0,
+                   Pm0=0.8, Pmax0=1.5, delta0=asin(Pm0/Pmax0),
+                   use_pm_input=false, use_pmax_input=false)
+
+Canonical single-machine infinite-bus model in per unit. `delta` is the rotor
+angle relative to the infinite bus and `omega_pu` is rotor speed in per unit.
+The network is represented by the classical power-angle relation
+`P_e = Pmax_e*sin(delta)`.
+
+    d(delta)/dt = omega_b*(omega_pu - 1)
+    2H*d(omega_pu)/dt = P_m - P_e - damping*(omega_pu - 1)
+    P_e = Pmax_e*sin(delta)
+
+`P_m` and `Pmax_e` can be exposed as external algebraic inputs. This allows a
+hydraulic turbine to drive mechanical power later, while network disturbances
+can be represented by changes in transfer capability.
+"""
+@component function SMIBGenerator(; name,
+    H = 4.0,
+    damping = 1.0,
+    f_grid = 50.0,
+    Pm0 = 0.8,
+    Pmax0 = 1.5,
+    delta0 = asin(Pm0 / Pmax0),
+    use_pm_input = false,
+    use_pmax_input = false)
+
+    omega_b = 2pi * f_grid
+
+    @variables begin
+        delta(t) = delta0
+        omega_pu(t) = 1.0
+        f(t) = f_grid
+        P_m(t) = Pm0
+        Pmax_e(t) = Pmax0
+        P_e(t) = Pm0
+    end
+
+    eqs = Equation[
+        D(delta) ~ omega_b * (omega_pu - 1.0),
+        2H * D(omega_pu) ~ P_m - P_e - damping * (omega_pu - 1.0),
+        P_e ~ Pmax_e * sin(delta),
+        f ~ f_grid * omega_pu,
+    ]
+
+    if !use_pm_input
+        push!(eqs, P_m ~ Pm0)
+    end
+    if !use_pmax_input
+        push!(eqs, Pmax_e ~ Pmax0)
+    end
+
+    ODESystem(
+        eqs,
+        t,
+        [delta, omega_pu, f, P_m, Pmax_e, P_e],
+        [];
+        name = name,
+    )
+end
+
+"""
     DroopGovernor(; name, f_ref=50.0, R=0.05, u0=0.8,
                    T_g=0.4, u_min=0.0, u_max=1.0)
 
