@@ -45,6 +45,34 @@ dynamic equation.
 end
 
 """
+    ConstantLevelReservoir(; name, h=50.0, z=0.0,
+                            rho=1000.0, g=9.81, p_atm=101325.0)
+
+Constant-level operating mode corresponding to the ideal large-reservoir option
+used in OpenHPL. The reservoir fixes hydrostatic outlet pressure and elevation,
+while the connected hydraulic network determines the outgoing mass flow. This is
+useful for FCR studies where upstream storage-level dynamics are intentionally
+much slower than the seconds-to-minutes frequency-control event.
+"""
+@component function ConstantLevelReservoir(; name,
+    h = 50.0,
+    z = 0.0,
+    rho = 1000.0,
+    g = 9.81,
+    p_atm = 101325.0)
+
+    @named o = Contact()
+
+    eqs = [
+        o.p ~ p_atm + rho * g * h,
+        o.z ~ z,
+    ]
+
+    sys = ODESystem(eqs, t, [], []; name = name)
+    return compose(sys, o)
+end
+
+"""
     HydroPipe(; name, H=0.0, L=1000.0, D_i=1.0, D_o=D_i,
               rho=1000.0, mu=1.0e-3, g=9.81, p_eps=1.5e-5, Vdot0=0.0)
 
