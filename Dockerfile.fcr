@@ -1,6 +1,14 @@
 FROM julia:1.12-bookworm
 
 WORKDIR /app
-COPY examples/fcr_compact_study ./examples/fcr_compact_study
 
-CMD ["julia", "examples/fcr_compact_study/run_study.jl"]
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-pip \
+    && pip3 install --no-cache-dir --break-system-packages jupyter nbconvert nbformat \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+RUN julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+
+CMD ["python3", "notebooks/run_railway_notebook.py"]
