@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: MPL-2.0
-# Hydraulic connector derived conceptually from OpenSimHub/OpenHPL Interfaces.Contact (MPL-2.0).
+# Connector concepts derived from OpenSimHub/OpenHPL interfaces where applicable.
 
 """
     HydraulicContact(; name)
 
-Acausal hydraulic connector. Pressure and elevation are potential variables;
-mass flow is a flow variable, so connected mass flows sum to zero.
+Minimal acausal hydraulic connector for incompressible waterway models.
+Pressure is the across variable and mass flow is the flow variable.
+Elevation is component geometry, not a connection potential, and is therefore
+kept out of the connector.
 """
 @connector function HydraulicContact(; name)
     sts = @variables begin
-        p(t), [description = "Hydraulic contact pressure [Pa]"]
+        p(t), [description = "Hydraulic pressure [Pa]"]
         mdot(t), [connect = Flow, description = "Mass flow rate [kg/s]"]
-        z(t), [description = "Hydraulic connection elevation [m]"]
     end
     ODESystem(Equation[], t, sts, []; name = name)
 end
@@ -19,13 +20,13 @@ end
 """
     RotationalContact(; name)
 
-Acausal rotational-mechanical connector for turbine, shaft and generator
-components. Shaft angle and angular speed are shared potentials; torque is a
-flow variable and therefore sums to zero at a connection set.
+Minimal acausal rotational-mechanical connector. Angular speed is the shared
+across variable and torque is the flow variable. Absolute shaft angle is not
+required at the interface for the present turbine-generator models; rotor angle
+is maintained internally by the generator electrical model.
 """
 @connector function RotationalContact(; name)
     sts = @variables begin
-        phi(t), [description = "Shaft angle [rad]"]
         omega(t), [description = "Shaft angular speed [rad/s]"]
         tau(t), [connect = Flow, description = "Torque flowing into component [N m]"]
     end
@@ -35,10 +36,9 @@ end
 """
     ElectricalContact(; name)
 
-Reduced electromechanical AC connector intended for active-power/frequency
-studies. Voltage magnitude and voltage angle are potential variables; active
-power is a flow variable. This is deliberately a reduced FCR/AGC connector,
-not yet a full dq0 or phasor P-Q terminal.
+Reduced AC active-power connector for FCR/AGC studies. Voltage magnitude and
+voltage angle are required by the power-angle relation; active power is the flow
+variable. This remains intentionally simpler than a full P-Q or dq terminal.
 """
 @connector function ElectricalContact(; name)
     sts = @variables begin
@@ -49,12 +49,7 @@ not yet a full dq0 or phasor P-Q terminal.
     ODESystem(Equation[], t, sts, []; name = name)
 end
 
-"""
-    connect_hydraulic(a, b)
-
-Connect two OpenHPLjl hydraulic ports. Pressure and elevation are equal across the
-connection; mass flows sum to zero through ModelingToolkit's `Flow` semantics.
-"""
+"""Connect two hydraulic ports."""
 connect_hydraulic(a, b) = connect(a, b)
 
 """Connect two rotational-mechanical ports."""
