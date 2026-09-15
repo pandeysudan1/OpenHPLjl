@@ -1,41 +1,113 @@
 using OpenHPLjl
 using ModelingToolkit
+using NonlinearSolve
 using OrdinaryDiffEq
 using SciMLBase
 using LinearAlgebra
 
-println("FCR Study 01 — full component initialization")
+println("FCR Study 01 — HomotopyProblem initialization")
 
-Q0 = 55.0
-h_surge0 = 117.63163567224585
-opening0 = 0.5541282862699871
-delta0 = 0.5208343152234535
-m_surge0 = 1000.0 * (pi * 6.0^2 / 4.0) * h_surge0
-dp_turbine0 = 2.01052121e6
+# -----------------------------------------------------------------------------
+# 1. Nonlinear hydro-electrical operating point solved by homotopy continuation
+# -----------------------------------------------------------------------------
+Q_target = 55.0
+rho = 1000.0
+g = 9.81
+mu = 1.0e-3
+p_eps = 1.5e-5
 
-println("equilibrium_Q_m3s = ", Q0)
-println("equilibrium_surge_h_m = ", h_surge0)
-println("equilibrium_opening = ", opening0)
-println("equilibrium_delta_rad = ", delta0)
-println("equilibrium_surge_mass_kg = ", m_surge0)
-println("equilibrium_turbine_dp_Pa = ", dp_turbine0)
+h_res = 120.0
+L_hr = 1200.0
+D_hr = 4.0
+A_hr = pi * D_hr^2 / 4
 
-@named reservoir = ConstantLevelReservoir(h = 120.0)
-@named headrace = HydroPipe(H = 0.0, L = 1200.0, D_i = 4.0, D_o = 4.0, Vdot0 = Q0)
+H_pen = 90.0
+L_pen = 700.0
+D_pen = 3.5
+A_pen = pi * D_pen^2 / 4
+
+C_v = 0.07
+eta_h = 0.90
+Sbase = 100e6
+X_line = 0.50
+
+# Deliberately rough λ=0 seeds. The actual operating point is not hard-coded.
+h_seed = 105.0
+dp_seed = 1.70e6
+u_seed = 0.65
+delta_seed = 0.40
+
+@variables q_ss h_ss dp_ss u_ss delta_ss
+
+v_hr = q_ss / A_hr
+v_pen = q_ss / A_pen
+F_hr = darcy_friction(v_hr, D_hr, L_hr, rho, mu, p_eps)
+F_pen = darcy_friction(v_pen, D_pen, L_pen, rho, mu, p_eps)
+
+# Dimensionless actual residuals keep continuation scales comparable.
+r_q = (q_ss - Q_target) / Q_target
+r_hr = ((rho * g * (h_res - h_ss)) * A_hr - F_hr) /
+       (rho * g * h_res * A_hr)
+r_pen = ((rho * g * (h_ss + H_pen) - dp_ss) * A_pen - F_pen) /
+        (rho * g * (h_seed + H_pen) * A_pen)
+r_turb = (dp_ss * (C_v * u_ss)^2 - q_ss * abs(q_ss)) / Q_target^2
+r_power = eta_h * dp_ss * q_ss / Sbase - (1 / X_line) * sin(delta_ss)
+
+op_eqs = [
+    0 ~ homotopy(r_q, (q_ss - Q_target) / Q_target),
+    0 ~ homotopy(r_hr, (h_ss - h_seed) / h_res),
+    0 ~ homotopy(r_pen, (dp_ss - dp_seed) / dp_seed),
+    0 ~ homotopy(r_turb, u_ss - u_seed),
+    0 ~ homotopy(r_power, delta_ss - delta_seed),
+]
+
+@mtkcompile op_sys = System(op_eqs)
+op_guess = [
+    q_ss => Q_target,
+    h_ss => h_seed,
+    dp_ss => dp_seed,
+    u_ss => u_seed,
+    delta_ss => delta_seed,
+]
+
+op_prob = HomotopyProblem(op_sys, op_guess)
+println("homotopy_problem_type = ", typeof(op_prob))
+op_sol = solve(op_prob, HomotopySweep(nsteps = 30))
+println("homotopy_retcode = ", op_sol.retcode)
+SciMLBase.successful_retcode(op_sol.retcode) || error("Homotopy operating-point solve failed")
+
+Q0 = op_sol[q_ss]
+h_surge0 = op_sol[h_ss]
+dp_turbine0 = op_sol[dp_ss]
+opening0 = op_sol[u_ss]
+delta0 = op_sol[delta_ss]
+m_surge0 = rho * (pi * 6.0^2 / 4.0) * h_surge0
+
+println("homotopy_Q_m3s = ", Q0)
+println("homotopy_surge_h_m = ", h_surge0)
+println("homotopy_turbine_dp_Pa = ", dp_turbine0)
+println("homotopy_opening = ", opening0)
+println("homotopy_delta_rad = ", delta0)
+
+# -----------------------------------------------------------------------------
+# 2. Full nonlinear acausal hydro -> shaft -> generator -> infinite bus model
+# -----------------------------------------------------------------------------
+@named reservoir = ConstantLevelReservoir(h = h_res)
+@named headrace = HydroPipe(H = 0.0, L = L_hr, D_i = D_hr, D_o = D_hr, Vdot0 = Q0)
 @named surge = SurgeTank(H = 90.0, L = 90.0, diameter = 6.0, h0 = h_surge0, Vdot0 = 0.0)
-@named penstock = HydroPipe(H = 90.0, L = 700.0, D_i = 3.5, D_o = 3.5, Vdot0 = Q0)
-@named turbine = HydroTurbineShaft(C_v = 0.07, opening = opening0, eta_h = 0.90)
+@named penstock = HydroPipe(H = H_pen, L = L_pen, D_i = D_pen, D_o = D_pen, Vdot0 = Q0)
+@named turbine = HydroTurbineShaft(C_v = C_v, opening = opening0, eta_h = eta_h)
 @named tail = PressureBoundary(p = 101325.0)
 @named shaft = RigidShaft()
 @named generator = ClassicalSynchronousGenerator(
-    Sbase = 100e6,
+    Sbase = Sbase,
     H = 4.0,
     damping = 1.0,
     f_grid = 50.0,
     poles = 12,
     delta0 = delta0,
 )
-@named line = LosslessLine(X = 0.50, Va = 1.0, Vb = 1.0)
+@named line = LosslessLine(X = X_line, Va = 1.0, Vb = 1.0)
 @named grid = InfiniteBus(theta = 0.0)
 
 eqs = [
@@ -50,19 +122,17 @@ eqs = [
     connect_electrical(line.b, grid.terminal),
 ]
 
-@named plant = ODESystem(
+@named plant = System(
     eqs,
     t;
     systems = [reservoir, headrace, surge, penstock, turbine, tail,
                shaft, generator, line, grid],
 )
 
-println("Compiling ModelingToolkit system …")
+println("Compiling full ModelingToolkit system …")
 sys = mtkcompile(plant)
 compiled_unknowns = unknowns(sys)
 println("Compiled: ", length(compiled_unknowns), " unknowns, ", length(equations(sys)), " equations")
-println("compiled_unknowns = ", compiled_unknowns)
-println("compiled_equations = ", equations(sys))
 
 prob = ODEProblem(
     sys,
@@ -75,7 +145,6 @@ prob = ODEProblem(
 )
 
 println("u0 = ", prob.u0)
-
 mass_matrix = prob.f.mass_matrix
 println("mass_matrix = ", mass_matrix)
 if mass_matrix isa AbstractMatrix
@@ -106,7 +175,6 @@ function try_solver(label, alg)
     try
         s = solve(pshort, alg; abstol = 1e-7, reltol = 1e-7, saveat = 0.01, maxiters = 1_000_000)
         println("SOLVER_TEST_RET = ", label, " => ", s.retcode)
-        println("SOLVER_TEST_SAMPLES = ", label, " => ", length(s.t))
         println("SOLVER_TEST_TEND = ", label, " => ", last(s.t))
         println("SOLVER_TEST_FEND = ", label, " => ", last(s[generator.f]))
         println("SOLVER_TEST_QEND = ", label, " => ", last(s[penstock.Vdot]))
