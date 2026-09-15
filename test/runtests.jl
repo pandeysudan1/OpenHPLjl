@@ -6,8 +6,8 @@ using SciMLBase
 
 @testset "OpenHPLjl hydraulic smoke test" begin
     @named reservoir = Reservoir(h0 = 20.0, z0 = 0.0, L = 200.0, W = 50.0)
-    @named pipe = Pipe(H = 0.0, L = 500.0, D_i = 1.5, D_o = 1.5, Vdot0 = 0.0)
-    @named tail = PressureBoundary(p = 101325.0, z = 0.0)
+    @named pipe = HydroPipe(H = 0.0, L = 500.0, D_i = 1.5, D_o = 1.5, Vdot0 = 0.0)
+    @named tail = PressureBoundary(p = 101325.0)
 
     eqs = [
         connect(reservoir.o, pipe.i),
@@ -15,7 +15,7 @@ using SciMLBase
     ]
 
     @named model = ODESystem(eqs, t; systems = [reservoir, pipe, tail])
-    sys = structural_simplify(model)
+    sys = mtkcompile(model)
     prob = ODEProblem(sys, [], (0.0, 5.0))
     sol = solve(prob, Rodas5P(); abstol = 1e-7, reltol = 1e-7)
 
@@ -26,10 +26,10 @@ end
 
 @testset "OpenHPLjl simple surge tank chain" begin
     @named reservoir = Reservoir(h0 = 80.0, z0 = 0.0)
-    @named headrace = Pipe(H = 0.0, L = 1500.0, D_i = 3.5, D_o = 3.5, Vdot0 = 8.0)
+    @named headrace = HydroPipe(H = 0.0, L = 1500.0, D_i = 3.5, D_o = 3.5, Vdot0 = 8.0)
     @named surge = SurgeTank(H = 80.0, L = 80.0, diameter = 5.0, h0 = 45.0, Vdot0 = 0.0)
-    @named penstock = Pipe(H = 80.0, L = 700.0, D_i = 2.5, D_o = 2.5, Vdot0 = 8.0)
-    @named tail = PressureBoundary(p = 101325.0, z = -80.0)
+    @named penstock = HydroPipe(H = 80.0, L = 700.0, D_i = 2.5, D_o = 2.5, Vdot0 = 8.0)
+    @named tail = PressureBoundary(p = 101325.0)
 
     eqs = [
         connect(reservoir.o, headrace.i),
@@ -44,7 +44,7 @@ end
         systems = [reservoir, headrace, surge, penstock, tail],
     )
 
-    sys = structural_simplify(model)
+    sys = mtkcompile(model)
     prob = ODEProblem(sys, [], (0.0, 10.0))
     sol = solve(prob, Rodas5P(); abstol = 1e-7, reltol = 1e-7)
 
