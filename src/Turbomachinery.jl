@@ -15,8 +15,11 @@
     @named o = HydraulicContact()
     @named shaft = RotationalContact()
 
+    # Turbine flow, power and torque are algebraic quantities. For a fixed
+    # opening, u is set by an equation rather than by a second initialization
+    # constraint.
     @variables begin
-        u(t) = opening
+        u(t)
         mdot(t)
         Vdot(t)
         dp(t)
