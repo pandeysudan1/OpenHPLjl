@@ -31,3 +31,5 @@ jobs:
         run: julia --project=. examples/fcr_full_hydro_grid/full_hydro_grid_fcr.jl
       - name: Run component-wise generator-grid example
         run: julia --project=. examples/03_generator_infinite_bus/component_smib.jl
+      - name: Run full component nonlinear FCR example
+        run: julia --project=. examples/04_full_component_fcr/full_component_fcr.jl
