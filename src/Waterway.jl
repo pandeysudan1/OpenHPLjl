@@ -70,12 +70,14 @@ end
     delta = 2 * (D_i - D_o) / (D_i + D_o)
     cf = 1 + 2 * delta^2
 
+    # Only the differential momentum state carries an initial value. Flow,
+    # velocity, friction and pressure drop are algebraically derived from it.
     @variables begin
         mdot(t) = rho * Vdot0
-        Vdot(t) = Vdot0
-        v(t) = Vdot0 / Abar
-        F_f(t) = 0.0
-        dp(t) = 0.0
+        Vdot(t)
+        v(t)
+        F_f(t)
+        dp(t)
     end
 
     eqs = [
@@ -109,19 +111,23 @@ end
 
     A = pi * diameter^2 / 4
     cos_theta = H / L
+    M0 = rho * A * h0 / cos_theta * Vdot0 / A
 
+    # h and M are the independent storage states. The remaining quantities are
+    # algebraically determined and should not become extra initialization
+    # constraints.
     @variables begin
         h(t) = h0
-        l(t) = h0 / cos_theta
-        m(t) = rho * A * h0 / cos_theta
-        mdot(t) = rho * Vdot0
-        Vdot(t) = Vdot0
-        v(t) = Vdot0 / A
-        M(t) = rho * A * h0 / cos_theta * Vdot0 / A
-        F_p(t) = 0.0
-        F_f(t) = 0.0
-        F_g(t) = rho * A * h0 / cos_theta * g * cos_theta
-        p_b(t) = p_atm + rho * g * h0
+        l(t)
+        m(t)
+        mdot(t)
+        Vdot(t)
+        v(t)
+        M(t) = M0
+        F_p(t)
+        F_f(t)
+        F_g(t)
+        p_b(t)
     end
 
     eqs = [
