@@ -54,3 +54,32 @@ end
     @test all(isfinite, sol[headrace.Vdot])
     @test all(isfinite, sol[penstock.Vdot])
 end
+
+@testset "OpenHPL transient-droop governor" begin
+    @named governor = OpenHPLGovernor(
+        f_ref = 50.0,
+        Y_ref = 0.8,
+        T_p = 0.04,
+        T_g = 0.2,
+        T_r = 1.75,
+        droop = 0.10,
+        delta = 0.04,
+        rate_open = 0.05,
+        rate_close = 0.20,
+    )
+
+    eqs = [
+        governor.f_meas ~ ifelse(t < 1.0, 50.0, 49.8),
+    ]
+
+    @named model = ODESystem(eqs, t; systems = [governor])
+    sys = mtkcompile(model)
+    prob = ODEProblem(sys, [], (0.0, 4.0))
+    sol = solve(prob, Rodas5P(); tstops = [1.0], abstol = 1e-8, reltol = 1e-8)
+
+    @test SciMLBase.successful_retcode(sol.retcode)
+    @test all(isfinite, sol[governor.Y])
+    @test maximum(sol[governor.Y]) <= 1.0 + 1e-8
+    @test minimum(sol[governor.Y]) >= -1e-8
+    @test sol[governor.Y][end] > sol[governor.Y][1]
+end
