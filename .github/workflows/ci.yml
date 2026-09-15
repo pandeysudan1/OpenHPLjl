@@ -29,3 +29,5 @@ jobs:
         run: julia --project=. examples/smib/smib_transfer_limit_step.jl
       - name: Run full hydro-grid FCR example
         run: julia --project=. examples/fcr_full_hydro_grid/full_hydro_grid_fcr.jl
+      - name: Run component-wise generator-grid example
+        run: julia --project=. examples/03_generator_infinite_bus/component_smib.jl
