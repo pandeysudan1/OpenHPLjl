@@ -1,15 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Hydraulic equations are derived conceptually from OpenSimHub/OpenHPL Waterway models (MPL-2.0).
 
-"""
-    Reservoir(; name, h0=50.0, z0=0.0, L=500.0, W=100.0,
-               alpha=0.0, rho=1000.0, g=9.81, p_atm=101325.0)
-
-Initial OpenHPL -> ModelingToolkit translation of the default reservoir mode.
-The model is deliberately written as a DAE: storage mass and water level are
-linked algebraically through reservoir geometry while mass balance supplies the
-dynamic equation.
-"""
 @component function Reservoir(; name,
     h0 = 50.0,
     z0 = 0.0,
@@ -37,23 +28,12 @@ dynamic equation.
         p_o ~ p_atm + g * rho * h,
         o.p ~ p_o,
         o.mdot ~ -rho * Vdot_o,
-        o.z ~ z0,
     ]
 
     sys = ODESystem(eqs, t, [h, A, m, Vdot_o, p_o], []; name = name)
     return compose(sys, o)
 end
 
-"""
-    ConstantLevelReservoir(; name, h=50.0, z=0.0,
-                            rho=1000.0, g=9.81, p_atm=101325.0)
-
-Constant-level operating mode corresponding to the ideal large-reservoir option
-used in OpenHPL. The reservoir fixes hydrostatic outlet pressure and elevation,
-while the connected hydraulic network determines the outgoing mass flow. This is
-useful for FCR studies where upstream storage-level dynamics are intentionally
-much slower than the seconds-to-minutes frequency-control event.
-"""
 @component function ConstantLevelReservoir(; name,
     h = 50.0,
     z = 0.0,
@@ -65,24 +45,12 @@ much slower than the seconds-to-minutes frequency-control event.
 
     eqs = [
         o.p ~ p_atm + rho * g * h,
-        o.z ~ z,
     ]
 
     sys = ODESystem(eqs, t, [], []; name = name)
     return compose(sys, o)
 end
 
-"""
-    HydroPipe(; name, H=0.0, L=1000.0, D_i=1.0, D_o=D_i,
-              rho=1000.0, mu=1.0e-3, g=9.81, p_eps=1.5e-5, Vdot0=0.0)
-
-Translation of OpenHPL.Waterway.Pipe. The Julia name is `HydroPipe` to avoid a
-name collision with Julia's built-in `Base.Pipe` process/IO type.
-
-OpenHPL momentum balance:
-
-    L*d(mdot)/dt = (p_i + rho*g*H - p_o)*A - F_f
-"""
 @component function HydroPipe(; name,
     H = 0.0,
     L = 1000.0,
@@ -118,20 +86,12 @@ OpenHPL momentum balance:
         dp ~ o.p - i.p,
         i.mdot ~ mdot,
         o.mdot ~ -mdot,
-        o.z ~ i.z - H,
     ]
 
     sys = ODESystem(eqs, t, [mdot, Vdot, v, F_f, dp], []; name = name)
     return compose(sys, i, o)
 end
 
-"""
-    SurgeTank(; name, H=100.0, L=H, diameter=3.0, h0=50.0,
-               Vdot0=0.0, rho=1000.0, mu=1e-3, g=9.81,
-               p_atm=101325.0, p_eps=1.5e-5)
-
-Translation of the `STSimple` branch of OpenHPL.Waterway.SurgeTank.
-"""
 @component function SurgeTank(; name,
     H = 100.0,
     L = H,
@@ -167,7 +127,6 @@ Translation of the `STSimple` branch of OpenHPL.Waterway.SurgeTank.
     eqs = [
         i.p ~ o.p,
         p_b ~ i.p,
-        i.z ~ o.z,
         mdot ~ i.mdot + o.mdot,
         Vdot ~ mdot / rho,
         v ~ Vdot / A,
@@ -191,13 +150,6 @@ Translation of the `STSimple` branch of OpenHPL.Waterway.SurgeTank.
     return compose(sys, i, o)
 end
 
-"""
-    PressureBoundary(; name, p=101325.0)
-
-Ideal pressure boundary. It fixes pressure only; elevation is propagated from the
-upstream hydraulic network so that one connected waterway has only one elevation
-reference. This avoids over-constraining the acausal network.
-"""
 @component function PressureBoundary(; name, p = 101325.0)
     @named i = HydraulicContact()
     eqs = [i.p ~ p]
