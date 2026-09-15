@@ -2,16 +2,16 @@
 # Hydraulic connector derived conceptually from OpenSimHub/OpenHPL Interfaces.Contact (MPL-2.0).
 
 """
-    Contact(; name)
+    HydraulicContact(; name)
 
 Acausal hydraulic connector. Pressure and elevation are potential variables;
 mass flow is a flow variable, so connected mass flows sum to zero.
 """
-@connector function Contact(; name)
+@connector function HydraulicContact(; name)
     sts = @variables begin
-        p(t), [description = "Contact pressure [Pa]"]
+        p(t), [description = "Hydraulic contact pressure [Pa]"]
         mdot(t), [connect = Flow, description = "Mass flow rate [kg/s]"]
-        z(t), [description = "Connection elevation [m]"]
+        z(t), [description = "Hydraulic connection elevation [m]"]
     end
     ODESystem(Equation[], t, sts, []; name = name)
 end
