@@ -6,10 +6,18 @@ ENTRYPOINT []
 
 ENV JULIA_PKG_PRECOMPILE_AUTO=0
 
-# Bake the exact Railway/GitHub source snapshot into the image so runtime does
-# not clone or rebuild the Julia environment on every deployment.
+# Cache the package layer independently from example-only changes.
+COPY Project.toml ./
+COPY src ./src
+
+# Keep package resolution/precompilation and package loading in separate Julia
+# processes. This avoids the loaded-stdlib version mismatch seen when Pkg and
+# the SciML stack are loaded in the same process.
+RUN /usr/local/julia/bin/julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+RUN /usr/local/julia/bin/julia --project=. -e 'using OpenHPLjl, ModelingToolkit, OrdinaryDiffEq, SciMLBase; println("OPENHPLJL_IMAGE_READY")'
+
+# Examples and documentation can now change without invalidating the expensive
+# dependency/precompile layer above.
 COPY . .
 
-RUN /usr/local/julia/bin/julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile(); using OpenHPLjl, ModelingToolkit, OrdinaryDiffEq, SciMLBase; println("OPENHPLJL_IMAGE_READY")'
-
-CMD ["bash", "-lc", "set -euxo pipefail; echo OPENHPLJL_RUNTIME_START; /usr/local/julia/bin/julia --version; echo OPENHPLJL_COMMIT_IMAGE_BUILD; /usr/local/julia/bin/julia --project=. examples/FCR/run.jl; echo OPENHPLJL_COMPLETE; sleep infinity"]
+CMD ["bash", "-lc", "set -euxo pipefail; echo OPENHPLJL_RUNTIME_START; /usr/local/julia/bin/julia --version; /usr/local/julia/bin/julia --project=. examples/FCR/run.jl; echo OPENHPLJL_COMPLETE; sleep infinity"]
