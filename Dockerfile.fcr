@@ -1,0 +1,6 @@
+FROM julia:1.12-bookworm
+
+WORKDIR /app
+COPY examples/fcr_compact_study ./examples/fcr_compact_study
+
+CMD ["julia", "examples/fcr_compact_study/run_study.jl"]
