@@ -27,3 +27,5 @@ jobs:
         run: julia --project=. examples/fcr_transient_droop.jl
       - name: Run SMIB example
         run: julia --project=. examples/smib/smib_transfer_limit_step.jl
+      - name: Run full hydro-grid FCR example
+        run: julia --project=. examples/fcr_full_hydro_grid/full_hydro_grid_fcr.jl
