@@ -25,3 +25,5 @@ jobs:
         run: julia --project=. examples/fcr_load_step.jl
       - name: Run transient-droop FCR example
         run: julia --project=. examples/fcr_transient_droop.jl
+      - name: Run SMIB example
+        run: julia --project=. examples/smib/smib_transfer_limit_step.jl
