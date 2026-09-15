@@ -29,8 +29,8 @@ mover torque.
     use_opening_input = false,
     omega_eps = 1.0e-3)
 
-    @named i = Contact()
-    @named o = Contact()
+    @named i = HydraulicContact()
+    @named o = HydraulicContact()
     @named shaft = RotationalContact()
 
     @variables begin
