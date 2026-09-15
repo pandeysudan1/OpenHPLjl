@@ -20,7 +20,7 @@ dynamic equation.
     g = 9.81,
     p_atm = 101325.0)
 
-    @named o = Contact()
+    @named o = HydraulicContact()
 
     @variables begin
         h(t) = h0
@@ -61,7 +61,7 @@ much slower than the seconds-to-minutes frequency-control event.
     g = 9.81,
     p_atm = 101325.0)
 
-    @named o = Contact()
+    @named o = HydraulicContact()
 
     eqs = [
         o.p ~ p_atm + rho * g * h,
@@ -94,8 +94,8 @@ OpenHPL momentum balance:
     p_eps = 1.5e-5,
     Vdot0 = 0.0)
 
-    @named i = Contact()
-    @named o = Contact()
+    @named i = HydraulicContact()
+    @named o = HydraulicContact()
 
     Dbar = (D_i + D_o) / 2
     Abar = pi * Dbar^2 / 4
@@ -144,8 +144,8 @@ Translation of the `STSimple` branch of OpenHPL.Waterway.SurgeTank.
     p_atm = 101325.0,
     p_eps = 1.5e-5)
 
-    @named i = Contact()
-    @named o = Contact()
+    @named i = HydraulicContact()
+    @named o = HydraulicContact()
 
     A = pi * diameter^2 / 4
     cos_theta = H / L
@@ -199,7 +199,7 @@ upstream hydraulic network so that one connected waterway has only one elevation
 reference. This avoids over-constraining the acausal network.
 """
 @component function PressureBoundary(; name, p = 101325.0)
-    @named i = Contact()
+    @named i = HydraulicContact()
     eqs = [i.p ~ p]
     sys = ODESystem(eqs, t, [], []; name = name)
     return compose(sys, i)
