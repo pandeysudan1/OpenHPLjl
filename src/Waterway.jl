@@ -45,20 +45,17 @@ dynamic equation.
 end
 
 """
-    Pipe(; name, H=0.0, L=1000.0, D_i=1.0, D_o=D_i,
-          rho=1000.0, mu=1.0e-3, g=9.81, p_eps=1.5e-5, Vdot0=0.0)
+    HydroPipe(; name, H=0.0, L=1000.0, D_i=1.0, D_o=D_i,
+              rho=1000.0, mu=1.0e-3, g=9.81, p_eps=1.5e-5, Vdot0=0.0)
 
-Translation of OpenHPL.Waterway.Pipe. The model assumes incompressible water and
-inelastic pipe walls. The single dynamic state is mass flow; pressure at each
-end is supplied by the connected hydraulic network.
+Translation of OpenHPL.Waterway.Pipe. The Julia name is `HydroPipe` to avoid a
+name collision with Julia's built-in `Base.Pipe` process/IO type.
 
 OpenHPL momentum balance:
 
     L*d(mdot)/dt = (p_i + rho*g*H - p_o)*A - F_f
-
-where `F_f` uses the same Darcy friction law as the Modelica implementation.
 """
-@component function Pipe(; name,
+@component function HydroPipe(; name,
     H = 0.0,
     L = 1000.0,
     D_i = 1.0,
@@ -106,14 +103,6 @@ end
                p_atm=101325.0, p_eps=1.5e-5)
 
 Translation of the `STSimple` branch of OpenHPL.Waterway.SurgeTank.
-
-The main conduit ports `i` and `o` share the manifold pressure. Their net mass
-flow enters the vertical surge shaft. The shaft stores water and includes the
-same mass, momentum, gravity and Darcy-friction terms as the Modelica model.
-
-This first implementation deliberately excludes the OpenHPL air-cushion,
-sharp-orifice, throttle-valve and creek-intake variants. They can be added after
-this baseline topology is validated against the Modelica implementation.
 """
 @component function SurgeTank(; name,
     H = 100.0,
@@ -151,19 +140,15 @@ this baseline topology is validated against the Modelica implementation.
         i.p ~ o.p,
         p_b ~ i.p,
         i.z ~ o.z,
-
         mdot ~ i.mdot + o.mdot,
         Vdot ~ mdot / rho,
         v ~ Vdot / A,
-
         l ~ h / cos_theta,
         m ~ rho * A * l,
         M ~ m * v,
-
         F_p ~ (p_b - p_atm) * A,
         F_f ~ darcy_friction(v, diameter, l, rho, mu, p_eps),
         F_g ~ m * g * cos_theta,
-
         D(m) ~ mdot,
         D(M) ~ mdot * v + F_p - F_f - F_g,
     ]
@@ -179,19 +164,15 @@ this baseline topology is validated against the Modelica implementation.
 end
 
 """
-    PressureBoundary(; name, p=101325.0, z=0.0)
+    PressureBoundary(; name, p=101325.0)
 
-Ideal hydraulic pressure boundary. It fixes pressure and elevation while the
-connected network determines mass flow. This small component is primarily for
-validation examples and will later be complemented by a translated OpenHPL
-tailrace/reservoir boundary.
+Ideal pressure boundary. It fixes pressure only; elevation is propagated from the
+upstream hydraulic network so that one connected waterway has only one elevation
+reference. This avoids over-constraining the acausal network.
 """
-@component function PressureBoundary(; name, p = 101325.0, z = 0.0)
+@component function PressureBoundary(; name, p = 101325.0)
     @named i = Contact()
-    eqs = [
-        i.p ~ p,
-        i.z ~ z,
-    ]
+    eqs = [i.p ~ p]
     sys = ODESystem(eqs, t, [], []; name = name)
     return compose(sys, i)
 end
