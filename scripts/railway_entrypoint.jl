@@ -1,12 +1,11 @@
 using OpenHPLjl
 
-println("OpenHPLjl service started")
+println("OpenHPLjl Railway job")
 println("Julia version: ", VERSION)
 
-# Construct the first translated component as a deployment smoke test.
-reservoir = Reservoir(name = :reservoir)
-println("Reservoir component constructed: ", nameof(reservoir))
-
-# Keep the Railway worker alive. Model translation/validation jobs can be added here
-# or moved to dedicated scripts as the package grows.
-wait(Condition())
+if get(ENV,"OPENHPL_JOB","smoke") == "fcr_compact"
+    include(joinpath(@__DIR__,"..","examples","fcr_compact_study","run_study.jl"))
+else
+    reservoir=Reservoir(name=:reservoir)
+    println("Reservoir component constructed: ",nameof(reservoir))
+end
