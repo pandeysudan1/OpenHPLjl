@@ -112,3 +112,60 @@ left free so the connected network determines the interchange.
     sys = ODESystem(eqs, t, [], []; name = name)
     return compose(sys, terminal)
 end
+
+"""
+    SingleAreaGrid(; name, H=6.0, damping=1.0, f_ref=50.0,
+                    V=1.0, Pload0=0.8, use_load_input=false)
+
+Finite-inertia equivalent grid area for FCR and AGC studies. Positive terminal
+power means active power flowing into the grid area from connected generators.
+
+    d(theta)/dt = omega_b*(omega_pu - 1)
+    2H*d(omega_pu)/dt = P_in - P_load - damping*(omega_pu - 1)
+    f = f_ref*omega_pu
+
+This component is intentionally designed so that two copies can later be linked
+by a `LosslessLine` and controlled with tie-line ACE/AGC.
+"""
+@component function SingleAreaGrid(; name,
+    H = 6.0,
+    damping = 1.0,
+    f_ref = 50.0,
+    V = 1.0,
+    Pload0 = 0.8,
+    use_load_input = false)
+
+    omega_b = 2pi * f_ref
+
+    @named terminal = ElectricalContact()
+
+    @variables begin
+        theta(t) = 0.0
+        omega_pu(t) = 1.0
+        f(t) = f_ref
+        P_load(t) = Pload0
+        P_in(t) = Pload0
+    end
+
+    eqs = Equation[
+        terminal.V ~ V,
+        terminal.theta ~ theta,
+        P_in ~ terminal.P,
+        D(theta) ~ omega_b * (omega_pu - 1.0),
+        2H * D(omega_pu) ~ P_in - P_load - damping * (omega_pu - 1.0),
+        f ~ f_ref * omega_pu,
+    ]
+
+    if !use_load_input
+        push!(eqs, P_load ~ Pload0)
+    end
+
+    sys = ODESystem(
+        eqs,
+        t,
+        [theta, omega_pu, f, P_load, P_in],
+        [];
+        name = name,
+    )
+    return compose(sys, terminal)
+end
