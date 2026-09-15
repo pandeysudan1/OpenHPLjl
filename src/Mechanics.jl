@@ -41,16 +41,14 @@ end
 """
     RigidShaft(; name)
 
-Ideal rotational coupling with two acausal ports. Angle and speed are equal and
-transmitted torque balances through the shaft. The component is useful as an
-explicit topology element between turbine and generator models.
+Ideal rotational coupling with two acausal ports. Angular speed is equal and
+transmitted torque balances through the shaft.
 """
 @component function RigidShaft(; name)
     @named a = RotationalContact()
     @named b = RotationalContact()
 
     eqs = [
-        a.phi ~ b.phi,
         a.omega ~ b.omega,
         a.tau + b.tau ~ 0,
     ]
