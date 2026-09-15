@@ -18,7 +18,7 @@ export t, D
 export Contact, RotationalContact, ElectricalContact
 export connect_hydraulic, connect_rotational, connect_electrical
 export darcy_factor, darcy_friction
-export Reservoir, HydroPipe, SurgeTank, PressureBoundary
+export Reservoir, ConstantLevelReservoir, HydroPipe, SurgeTank, PressureBoundary
 export PowerToTorque, RigidShaft
 export ClassicalSynchronousGenerator, LosslessLine, InfiniteBus, SingleAreaGrid
 export HydroTurbineShaft
