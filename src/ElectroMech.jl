@@ -3,10 +3,11 @@
 
 """
     Turbine(; name, rho=1000.0, eta_h=0.9, C_v=1.0, opening=1.0,
-             alpha=1.0, epsilon=5e-5)
+             alpha=1.0, epsilon=5e-5, use_opening_input=false)
 
-Minimal translation of OpenHPL's simple turbine. Hydraulic flow is governed by
-the BaseValve relation and shaft power is computed from hydraulic power.
+Minimal translation of OpenHPL's simple turbine. When `use_opening_input=false`,
+`u` is fixed to `opening`. When true, the assembled plant must provide one
+equation for `u`, e.g. `turbine.u ~ governor.u`.
 """
 @component function Turbine(; name,
     rho = 1000.0,
@@ -14,14 +15,14 @@ the BaseValve relation and shaft power is computed from hydraulic power.
     C_v = 1.0,
     opening = 1.0,
     alpha = 1.0,
-    epsilon = 5.0e-5)
+    epsilon = 5.0e-5,
+    use_opening_input = false)
 
     @named i = Contact()
     @named o = Contact()
 
-    ueff = max(epsilon, opening^alpha)
-
     @variables begin
+        u(t) = opening
         mdot(t)
         Vdot(t)
         dp(t)
@@ -29,28 +30,32 @@ the BaseValve relation and shaft power is computed from hydraulic power.
         P_t(t)
     end
 
-    eqs = [
+    eqs = Equation[
         i.mdot + o.mdot ~ 0,
         mdot ~ i.mdot,
         Vdot ~ mdot / rho,
         dp ~ i.p - o.p,
-        dp * (C_v * ueff)^2 ~ Vdot * abs(Vdot),
+        dp * (C_v * max(epsilon, u^alpha))^2 ~ Vdot * abs(Vdot),
         P_hyd ~ dp * Vdot,
         P_t ~ eta_h * P_hyd,
         o.z ~ i.z,
     ]
 
-    sys = ODESystem(eqs, t, [mdot, Vdot, dp, P_hyd, P_t], []; name = name)
+    if !use_opening_input
+        push!(eqs, u ~ opening)
+    end
+
+    sys = ODESystem(eqs, t, [u, mdot, Vdot, dp, P_hyd, P_t], []; name = name)
     return compose(sys, i, o)
 end
 
 """
     SimpleGenerator(; name, J=2e5, poles=12, f_grid=50.0,
-                     Pload=20e6, Ploss=0.0, eta_e=1.0)
+                     Pload=20e6, Ploss=0.0, eta_e=1.0,
+                     use_load_input=false)
 
 Reduced translation of OpenHPL.Generators.SimpleGen using rotor energy balance.
-`P_m` is left as an algebraic input so it can be connected directly to turbine
-shaft power in an assembled plant model.
+When `use_load_input=true`, the assembled plant must provide `P_load`.
 """
 @component function SimpleGenerator(; name,
     J = 2.0e5,
@@ -58,7 +63,8 @@ shaft power in an assembled plant model.
     f_grid = 50.0,
     Pload = 20.0e6,
     Ploss = 0.0,
-    eta_e = 1.0)
+    eta_e = 1.0,
+    use_load_input = false)
 
     omega_nom = 4pi * f_grid / poles
 
@@ -66,16 +72,54 @@ shaft power in an assembled plant model.
         omega(t) = omega_nom
         f(t) = f_grid
         P_m(t)
+        P_load(t) = Pload
         P_e(t)
         P_fric(t)
     end
 
-    eqs = [
+    eqs = Equation[
         P_fric ~ Ploss * (omega / omega_nom)^2,
-        J * omega * D(omega) ~ P_m - Pload - P_fric,
+        J * omega * D(omega) ~ P_m - P_load - P_fric,
         f ~ omega * poles / (4pi),
-        P_e ~ eta_e * Pload,
+        P_e ~ eta_e * P_load,
     ]
 
-    ODESystem(eqs, t, [omega, f, P_m, P_e, P_fric], []; name = name)
+    if !use_load_input
+        push!(eqs, P_load ~ Pload)
+    end
+
+    ODESystem(eqs, t, [omega, f, P_m, P_load, P_e, P_fric], []; name = name)
+end
+
+"""
+    DroopGovernor(; name, f_ref=50.0, R=0.05, u0=0.8,
+                   T_g=0.4, u_min=0.0, u_max=1.0)
+
+First-order primary-frequency governor. The measured frequency `f_meas` is an
+external algebraic input. The command is saturated to guide-vane limits and the
+servo follows it with time constant `T_g`.
+
+    u_cmd = sat(u0 + (f_ref - f_meas)/(R*f_ref))
+    T_g*du/dt = u_cmd - u
+"""
+@component function DroopGovernor(; name,
+    f_ref = 50.0,
+    R = 0.05,
+    u0 = 0.8,
+    T_g = 0.4,
+    u_min = 0.0,
+    u_max = 1.0)
+
+    @variables begin
+        f_meas(t) = f_ref
+        u_cmd(t) = u0
+        u(t) = u0
+    end
+
+    eqs = [
+        u_cmd ~ min(u_max, max(u_min, u0 + (f_ref - f_meas) / (R * f_ref))),
+        T_g * D(u) ~ u_cmd - u,
+    ]
+
+    ODESystem(eqs, t, [f_meas, u_cmd, u], []; name = name)
 end
