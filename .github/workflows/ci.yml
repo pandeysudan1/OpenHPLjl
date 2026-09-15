@@ -21,3 +21,7 @@ jobs:
         run: julia --project=. -e 'using Pkg; Pkg.test()'
       - name: Run hydraulic example
         run: julia --project=. examples/reservoir_pipe.jl
+      - name: Run droop FCR example
+        run: julia --project=. examples/fcr_load_step.jl
+      - name: Run transient-droop FCR example
+        run: julia --project=. examples/fcr_transient_droop.jl
