@@ -15,6 +15,6 @@ export t, D
 export Contact, connect_hydraulic
 export darcy_factor, darcy_friction
 export Reservoir, HydroPipe, SurgeTank, PressureBoundary
-export Turbine, SimpleGenerator, DroopGovernor
+export Turbine, SimpleGenerator, DroopGovernor, OpenHPLGovernor
 
 end # module
