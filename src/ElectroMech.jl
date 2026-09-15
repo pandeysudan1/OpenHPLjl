@@ -18,8 +18,8 @@ equation for `u`, e.g. `turbine.u ~ governor.u`.
     epsilon = 5.0e-5,
     use_opening_input = false)
 
-    @named i = Contact()
-    @named o = Contact()
+    @named i = HydraulicContact()
+    @named o = HydraulicContact()
 
     @variables begin
         u(t) = opening
