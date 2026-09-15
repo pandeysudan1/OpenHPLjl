@@ -16,8 +16,8 @@ COPY src ./src
 RUN /usr/local/julia/bin/julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 RUN /usr/local/julia/bin/julia --project=. -e 'using OpenHPLjl, ModelingToolkit, OrdinaryDiffEq, SciMLBase; println("OPENHPLJL_IMAGE_READY")'
 
-# Examples and documentation can now change without invalidating the expensive
-# dependency/precompile layer above.
-COPY . .
+# Example-only changes must not overwrite src/ or Project.toml after precompile,
+# otherwise Julia invalidates the local package cache at container runtime.
+COPY examples ./examples
 
 CMD ["bash", "-lc", "set -euxo pipefail; echo OPENHPLJL_RUNTIME_START; /usr/local/julia/bin/julia --version; /usr/local/julia/bin/julia --project=. examples/FCR/run.jl; echo OPENHPLJL_COMPLETE; sleep infinity"]
