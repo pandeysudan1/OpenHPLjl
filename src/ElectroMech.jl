@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MPL-2.0
-# Conceptually derived from OpenSimHub/OpenHPL ElectroMech models (MPL-2.0).
+# Conceptually derived from OpenSimHub/OpenHPL ElectroMech and Controller models (MPL-2.0).
 
 """
     Turbine(; name, rho=1000.0, eta_h=0.9, C_v=1.0, opening=1.0,
@@ -122,4 +122,64 @@ servo follows it with time constant `T_g`.
     ]
 
     ODESystem(eqs, t, [f_meas, u_cmd, u], []; name = name)
+end
+
+"""
+    OpenHPLGovernor(; name, f_ref=50.0, Y_ref=0.72151,
+                     T_p=0.04, T_g=0.2, T_r=1.75,
+                     droop=0.1, delta=0.04,
+                     rate_open=0.05, rate_close=0.2)
+
+Dynamic core of `OpenHPL.Controllers.Governor` translated to ModelingToolkit.
+It retains the pilot servo, main servo, permanent droop, transient droop and
+asymmetric guide-vane rate limits used by OpenHPL. The upstream power-to-opening
+lookup table is deliberately kept outside this first dynamic core; `Y_ref`
+represents the operating-point guide-vane opening.
+
+The reduced equations correspond to the equations documented in the upstream
+Modelica model:
+
+    T_r*dx_r/dt + x_r = delta*Y
+    e = 1 - f/f_ref - (delta*Y - x_r) + droop*(Y_ref - Y)
+    T_p*dx_p/dt + x_p = e
+    dY_state/dt = clamp(x_p/T_g, -rate_close, rate_open)
+    Y = clamp(Y_state, 0, 1)
+"""
+@component function OpenHPLGovernor(; name,
+    f_ref = 50.0,
+    Y_ref = 0.72151,
+    T_p = 0.04,
+    T_g = 0.2,
+    T_r = 1.75,
+    droop = 0.1,
+    delta = 0.04,
+    rate_open = 0.05,
+    rate_close = 0.2)
+
+    @variables begin
+        f_meas(t) = f_ref
+        x_r(t) = delta * Y_ref
+        x_p(t) = 0.0
+        e(t) = 0.0
+        rate_cmd(t) = 0.0
+        Y_state(t) = Y_ref
+        Y(t) = Y_ref
+    end
+
+    eqs = [
+        T_r * D(x_r) + x_r ~ delta * Y,
+        e ~ 1 - f_meas / f_ref - (delta * Y - x_r) + droop * (Y_ref - Y),
+        T_p * D(x_p) + x_p ~ e,
+        rate_cmd ~ min(rate_open, max(-rate_close, x_p / T_g)),
+        D(Y_state) ~ rate_cmd,
+        Y ~ min(1.0, max(0.0, Y_state)),
+    ]
+
+    ODESystem(
+        eqs,
+        t,
+        [f_meas, x_r, x_p, e, rate_cmd, Y_state, Y],
+        [];
+        name = name,
+    )
 end
