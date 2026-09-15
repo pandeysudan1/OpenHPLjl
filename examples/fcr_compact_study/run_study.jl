@@ -68,8 +68,8 @@ function svg_plot(path,title,ylabel,times,series;ymin,ymax)
         println(io,"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"$w\" height=\"$h\" viewBox=\"0 0 $w $h\"><rect width=\"100%\" height=\"100%\" fill=\"white\"/><text x=\"$l\" y=\"30\" font-family=\"sans-serif\" font-size=\"20\">$title</text>")
         println(io,"<line x1=\"$l\" y1=\"$(top+ph)\" x2=\"$(l+pw)\" y2=\"$(top+ph)\" stroke=\"#222\"/><line x1=\"$l\" y1=\"$top\" x2=\"$l\" y2=\"$(top+ph)\" stroke=\"#222\"/>")
         for j in 0:5
-            y=ymin+j*(ymax-ymin)/5; yy=sy(y)
-            println(io,"<line x1=\"$l\" y1=\"$yy\" x2=\"$(l+pw)\" y2=\"$yy\" stroke=\"#ddd\"/><text x=\"$(l-8)\" y=\"$(yy+4)\" text-anchor=\"end\" font-family=\"sans-serif\" font-size=\"12\">$(@sprintf(\"%.3f\",y))</text>")
+            y=ymin+j*(ymax-ymin)/5; yy=sy(y); label=@sprintf("%.3f",y)
+            println(io,"<line x1=\"$l\" y1=\"$yy\" x2=\"$(l+pw)\" y2=\"$yy\" stroke=\"#ddd\"/><text x=\"$(l-8)\" y=\"$(yy+4)\" text-anchor=\"end\" font-family=\"sans-serif\" font-size=\"12\">$label</text>")
         end
         for (j,(label,values)) in enumerate(series)
             pts=join(("$(round(sx(t),digits=2)),$(round(sy(y),digits=2))" for (t,y) in zip(times,values))," "); c=colors[j]
