@@ -36,13 +36,14 @@ end
 """
     ElectricalContact(; name)
 
-Reduced AC active-power connector for FCR/AGC studies. Voltage magnitude and
-voltage angle are required by the power-angle relation; active power is the flow
-variable. This remains intentionally simpler than a full P-Q or dq terminal.
+Minimal acausal reduced active-power connector for FCR/AGC studies.
+Electrical angle is the across variable and active power is the flow variable.
+Voltage magnitude is intentionally kept as a component/line parameter in this
+reduced model. A future full AC connector should use a balanced P-Q terminal
+rather than adding voltage magnitude without a corresponding reactive-power flow.
 """
 @connector function ElectricalContact(; name)
     sts = @variables begin
-        V(t), [description = "Voltage magnitude [pu]"]
         theta(t), [description = "Electrical voltage angle [rad]"]
         P(t), [connect = Flow, description = "Active power flowing into component [pu]"]
     end
