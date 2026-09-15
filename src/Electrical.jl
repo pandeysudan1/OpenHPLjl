@@ -27,10 +27,12 @@ reference frame.
     @named mech = RotationalContact()
     @named terminal = ElectricalContact()
 
+    # delta and omega_m are the independent generator states. Frequency,
+    # electrical power and torques are algebraically derived from them.
     @variables begin
         delta(t) = delta0
         omega_m(t) = omega_m_nom
-        f(t) = f_grid
+        f(t)
         P_e(t)
         tau_m(t)
         tau_e(t)
