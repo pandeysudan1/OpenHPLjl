@@ -9,4 +9,5 @@ RUN julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
 COPY . .
 
+# Railway Study 01 runner: source must exist before package load.
 CMD ["julia", "--project=.", "examples/FCR/run.jl"]
