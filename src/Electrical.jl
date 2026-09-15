@@ -2,7 +2,7 @@
 
 """
     ClassicalSynchronousGenerator(; name, Sbase=100e6, H=4.0,
-        damping=1.0, f_grid=50.0, poles=12, V0=1.0,
+        damping=1.0, f_grid=50.0, poles=12,
         delta0=0.5, omega_eps=1.0e-3)
 
 Classical synchronous generator with an acausal rotational shaft port and a
@@ -16,7 +16,6 @@ reference frame.
     damping = 1.0,
     f_grid = 50.0,
     poles = 12,
-    V0 = 1.0,
     delta0 = 0.5,
     omega_eps = 1.0e-3)
 
@@ -44,7 +43,6 @@ reference frame.
         mech.omega ~ omega_m,
         D(delta) ~ pole_pairs * (omega_m - omega_m_nom),
         terminal.theta ~ delta,
-        terminal.V ~ V0,
         P_e ~ -terminal.P,
         tau_m ~ mech.tau,
         tau_e ~ Sbase * P_e / omega_safe,
@@ -63,20 +61,21 @@ reference frame.
 end
 
 """
-    LosslessLine(; name, X=0.5)
+    LosslessLine(; name, X=0.5, Va=1.0, Vb=1.0)
 
-Reduced lossless active-power transmission line:
+Reduced lossless active-power transmission line with fixed endpoint voltage
+magnitudes and acausal angle/power terminals:
 
-    P_ab = V_a*V_b/X * sin(theta_a - theta_b)
+    P_ab = Va*Vb/X * sin(theta_a - theta_b)
 """
-@component function LosslessLine(; name, X = 0.5)
+@component function LosslessLine(; name, X = 0.5, Va = 1.0, Vb = 1.0)
     @named a = ElectricalContact()
     @named b = ElectricalContact()
 
     @variables P_ab(t)
 
     eqs = [
-        P_ab ~ (a.V * b.V / X) * sin(a.theta - b.theta),
+        P_ab ~ (Va * Vb / X) * sin(a.theta - b.theta),
         a.P ~ P_ab,
         b.P ~ -P_ab,
     ]
@@ -86,13 +85,12 @@ Reduced lossless active-power transmission line:
 end
 
 """
-    InfiniteBus(; name, V=1.0, theta=0.0)
+    InfiniteBus(; name, theta=0.0)
 """
-@component function InfiniteBus(; name, V = 1.0, theta = 0.0)
+@component function InfiniteBus(; name, theta = 0.0)
     @named terminal = ElectricalContact()
 
     eqs = [
-        terminal.V ~ V,
         terminal.theta ~ theta,
     ]
 
@@ -102,13 +100,12 @@ end
 
 """
     SingleAreaGrid(; name, H=6.0, damping=1.0, f_ref=50.0,
-                    V=1.0, Pload0=0.8, use_load_input=false)
+                    Pload0=0.8, use_load_input=false)
 """
 @component function SingleAreaGrid(; name,
     H = 6.0,
     damping = 1.0,
     f_ref = 50.0,
-    V = 1.0,
     Pload0 = 0.8,
     use_load_input = false)
 
@@ -125,7 +122,6 @@ end
     end
 
     eqs = Equation[
-        terminal.V ~ V,
         terminal.theta ~ theta,
         P_in ~ terminal.P,
         D(theta) ~ omega_b * (omega_pu - 1.0),
