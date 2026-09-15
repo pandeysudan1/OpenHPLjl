@@ -9,15 +9,6 @@ Classical synchronous generator with an acausal rotational shaft port and a
 reduced active-power electrical port. The rotor mechanical speed is physical
 rad/s. The electrical rotor angle `delta` evolves relative to the synchronous
 reference frame.
-
-    J*d(omega_m)/dt = tau_m - tau_e - Dm*(omega_m - omega_m_nom)
-    d(delta)/dt = pole_pairs*(omega_m - omega_m_nom)
-    P_e = -terminal.P
-    tau_e = Sbase*P_e/omega_m
-
-`H` is converted to physical inertia using
-
-    J = 2*H*Sbase/omega_m_nom^2.
 """
 @component function ClassicalSynchronousGenerator(; name,
     Sbase = 100.0e6,
@@ -49,7 +40,6 @@ reference frame.
 
     eqs = [
         mech.omega ~ omega_m,
-        D(mech.phi) ~ omega_m - omega_m_nom,
         D(delta) ~ pole_pairs * (omega_m - omega_m_nom),
         terminal.theta ~ delta,
         terminal.V ~ V0,
@@ -76,8 +66,6 @@ end
 Reduced lossless active-power transmission line:
 
     P_ab = V_a*V_b/X * sin(theta_a - theta_b)
-
-The two electrical flow variables balance exactly.
 """
 @component function LosslessLine(; name, X = 0.5)
     @named a = ElectricalContact()
@@ -97,9 +85,6 @@ end
 
 """
     InfiniteBus(; name, V=1.0, theta=0.0)
-
-Ideal infinite bus with fixed voltage magnitude and phase angle. Active power is
-left free so the connected network determines the interchange.
 """
 @component function InfiniteBus(; name, V = 1.0, theta = 0.0)
     @named terminal = ElectricalContact()
@@ -116,16 +101,6 @@ end
 """
     SingleAreaGrid(; name, H=6.0, damping=1.0, f_ref=50.0,
                     V=1.0, Pload0=0.8, use_load_input=false)
-
-Finite-inertia equivalent grid area for FCR and AGC studies. Positive terminal
-power means active power flowing into the grid area from connected generators.
-
-    d(theta)/dt = omega_b*(omega_pu - 1)
-    2H*d(omega_pu)/dt = P_in - P_load - damping*(omega_pu - 1)
-    f = f_ref*omega_pu
-
-This component is intentionally designed so that two copies can later be linked
-by a `LosslessLine` and controlled with tie-line ACE/AGC.
 """
 @component function SingleAreaGrid(; name,
     H = 6.0,
