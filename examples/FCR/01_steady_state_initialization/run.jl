@@ -16,7 +16,7 @@ delta0 = 0.5208343152234535
 # Numeric guesses for algebraic quantities that MTK cannot infer uniquely
 # from symbolic defaults during initialization.
 m_surge0 = 1000.0 * (pi * 6.0^2 / 4.0) * h_surge0
-dp_turbine0 = 2.01052026e6
+dp_turbine0 = 2.01052121e6
 
 println("equilibrium_Q_m3s = ", Q0)
 println("equilibrium_surge_h_m = ", h_surge0)
@@ -66,7 +66,10 @@ eqs = [
 
 println("Compiling ModelingToolkit system …")
 sys = mtkcompile(plant)
-println("Compiled: ", length(unknowns(sys)), " unknowns, ", length(equations(sys)), " equations")
+compiled_unknowns = unknowns(sys)
+println("Compiled: ", length(compiled_unknowns), " unknowns, ", length(equations(sys)), " equations")
+println("compiled_unknowns = ", compiled_unknowns)
+println("compiled_equations = ", equations(sys))
 
 # A true steady equilibrium should remain stationary over this interval.
 # These are solver guesses, not extra initialization equations.
@@ -79,6 +82,29 @@ prob = ODEProblem(
         turbine.dp => dp_turbine0,
     ],
 )
+
+println("u0 = ", prob.u0)
+
+# Evaluate the generated ODE at the initialized operating point before calling
+# the integrator. This identifies which compiled state is not actually at a
+# steady equilibrium if the time-domain solve becomes unstable.
+du0 = try
+    collect(prob.f(prob.u0, prob.p, 0.0))
+catch err
+    if err isa MethodError
+        buf = similar(prob.u0)
+        prob.f(buf, prob.u0, prob.p, 0.0)
+        collect(buf)
+    else
+        rethrow()
+    end
+end
+println("du0 = ", du0)
+for (state, value, derivative) in zip(compiled_unknowns, prob.u0, du0)
+    println("INITIAL_STATE ", state, " = ", value, " ; derivative = ", derivative)
+end
+println("max_abs_du0 = ", maximum(abs, du0))
+
 sol = solve(prob, Rodas5P(); abstol = 1e-7, reltol = 1e-7, saveat = 0.1)
 
 println("retcode = ", sol.retcode)
