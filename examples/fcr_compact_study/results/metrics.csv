@@ -1,0 +1,3 @@
+controller,nadir_hz,nadir_time_s,power_5s_pu,power_15s_pu,power_30s_pu,frequency_5s_hz,frequency_15s_hz,frequency_30s_hz,max_power_pu
+standard_droop,49.428161,1.460,0.053171,0.093482,0.096289,49.763908,49.718695,49.763452,0.154245
+transient_droop,48.863074,3.030,0.139704,0.108662,0.087024,49.274303,49.463396,49.558630,0.143470
