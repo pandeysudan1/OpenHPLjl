@@ -13,10 +13,17 @@ h_surge0 = 117.63163567224585
 opening0 = 0.5541282862699871
 delta0 = 0.5208343152234535
 
+# Numeric guesses for algebraic quantities that MTK cannot infer uniquely
+# from symbolic defaults during initialization.
+m_surge0 = 1000.0 * (pi * 6.0^2 / 4.0) * h_surge0
+dp_turbine0 = 2.01052026e6
+
 println("equilibrium_Q_m3s = ", Q0)
 println("equilibrium_surge_h_m = ", h_surge0)
 println("equilibrium_opening = ", opening0)
 println("equilibrium_delta_rad = ", delta0)
+println("equilibrium_surge_mass_kg = ", m_surge0)
+println("equilibrium_turbine_dp_Pa = ", dp_turbine0)
 
 @named reservoir = ConstantLevelReservoir(h = 120.0)
 @named headrace = HydroPipe(H = 0.0, L = 1200.0, D_i = 4.0, D_o = 4.0, Vdot0 = Q0)
@@ -61,7 +68,16 @@ sys = mtkcompile(plant)
 println("Compiled: ", length(unknowns(sys)), " unknowns, ", length(equations(sys)), " equations")
 
 # A true steady equilibrium should remain stationary over this interval.
-prob = ODEProblem(sys, [], (0.0, 20.0))
+# These are solver guesses, not extra initialization equations.
+prob = ODEProblem(
+    sys,
+    [],
+    (0.0, 20.0);
+    guesses = [
+        surge.m => m_surge0,
+        turbine.dp => dp_turbine0,
+    ],
+)
 sol = solve(prob, Rodas5P(); abstol = 1e-7, reltol = 1e-7, saveat = 0.1)
 
 println("retcode = ", sol.retcode)
