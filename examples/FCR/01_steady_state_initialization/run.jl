@@ -38,11 +38,12 @@ println("equilibrium_turbine_dp_Pa = ", dp_turbine0)
     damping = 1.0,
     f_grid = 50.0,
     poles = 12,
-    V0 = 1.0,
     delta0 = delta0,
 )
-@named line = LosslessLine(X = 0.50)
-@named grid = InfiniteBus(V = 1.0, theta = 0.0)
+# Voltage magnitudes are fixed parameters of this reduced active-power line,
+# while theta/P are the two acausal connector variables.
+@named line = LosslessLine(X = 0.50, Va = 1.0, Vb = 1.0)
+@named grid = InfiniteBus(theta = 0.0)
 
 eqs = [
     connect_hydraulic(reservoir.o, headrace.i),
