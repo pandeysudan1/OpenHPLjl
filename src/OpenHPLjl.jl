@@ -15,7 +15,7 @@ include("Turbomachinery.jl")
 include("ElectroMech.jl")
 
 export t, D
-export Contact, RotationalContact, ElectricalContact
+export HydraulicContact, RotationalContact, ElectricalContact
 export connect_hydraulic, connect_rotational, connect_electrical
 export darcy_factor, darcy_friction
 export Reservoir, ConstantLevelReservoir, HydroPipe, SurgeTank, PressureBoundary
