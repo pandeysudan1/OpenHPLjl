@@ -36,51 +36,46 @@ h_seed = 105.0
 dp_seed = 1.70e6
 u_seed = 0.65
 delta_seed = 0.40
+u0_hom = [Q_target, h_seed, dp_seed, u_seed, delta_seed]
 
-@variables q_ss h_ss dp_ss u_ss delta_ss
+# SciML HomotopyProblem uses f(u, p, λ) = 0. At λ=0 the residual is the
+# simple seed system; at λ=1 it is the full nonlinear operating-point system.
+function operating_point_residual(u, p, λ)
+    q, h, dp, opening, delta = u
 
-v_hr = q_ss / A_hr
-v_pen = q_ss / A_pen
-F_hr = darcy_friction(v_hr, D_hr, L_hr, rho, mu, p_eps)
-F_pen = darcy_friction(v_pen, D_pen, L_pen, rho, mu, p_eps)
+    v_hr = q / A_hr
+    v_pen = q / A_pen
+    F_hr = darcy_friction(v_hr, D_hr, L_hr, rho, mu, p_eps)
+    F_pen = darcy_friction(v_pen, D_pen, L_pen, rho, mu, p_eps)
 
-# Dimensionless actual residuals keep continuation scales comparable.
-r_q = (q_ss - Q_target) / Q_target
-r_hr = ((rho * g * (h_res - h_ss)) * A_hr - F_hr) /
-       (rho * g * h_res * A_hr)
-r_pen = ((rho * g * (h_ss + H_pen) - dp_ss) * A_pen - F_pen) /
-        (rho * g * (h_seed + H_pen) * A_pen)
-r_turb = (dp_ss * (C_v * u_ss)^2 - q_ss * abs(q_ss)) / Q_target^2
-r_power = eta_h * dp_ss * q_ss / Sbase - (1 / X_line) * sin(delta_ss)
+    actual = [
+        (q - Q_target) / Q_target,
+        ((rho * g * (h_res - h)) * A_hr - F_hr) /
+            (rho * g * h_res * A_hr),
+        ((rho * g * (h + H_pen) - dp) * A_pen - F_pen) /
+            (rho * g * (h_seed + H_pen) * A_pen),
+        (dp * (C_v * opening)^2 - q * abs(q)) / Q_target^2,
+        eta_h * dp * q / Sbase - (1 / X_line) * sin(delta),
+    ]
 
-op_eqs = [
-    0 ~ homotopy(r_q, (q_ss - Q_target) / Q_target),
-    0 ~ homotopy(r_hr, (h_ss - h_seed) / h_res),
-    0 ~ homotopy(r_pen, (dp_ss - dp_seed) / dp_seed),
-    0 ~ homotopy(r_turb, u_ss - u_seed),
-    0 ~ homotopy(r_power, delta_ss - delta_seed),
-]
+    simple = [
+        (q - Q_target) / Q_target,
+        (h - h_seed) / h_res,
+        (dp - dp_seed) / dp_seed,
+        opening - u_seed,
+        delta - delta_seed,
+    ]
 
-@mtkcompile op_sys = System(op_eqs)
-op_guess = [
-    q_ss => Q_target,
-    h_ss => h_seed,
-    dp_ss => dp_seed,
-    u_ss => u_seed,
-    delta_ss => delta_seed,
-]
+    return (1 - λ) .* simple .+ λ .* actual
+end
 
-op_prob = HomotopyProblem(op_sys, op_guess)
+op_prob = HomotopyProblem(operating_point_residual, u0_hom; λspan = (0.0, 1.0))
 println("homotopy_problem_type = ", typeof(op_prob))
 op_sol = solve(op_prob, HomotopySweep(nsteps = 30))
 println("homotopy_retcode = ", op_sol.retcode)
 SciMLBase.successful_retcode(op_sol.retcode) || error("Homotopy operating-point solve failed")
 
-Q0 = op_sol[q_ss]
-h_surge0 = op_sol[h_ss]
-dp_turbine0 = op_sol[dp_ss]
-opening0 = op_sol[u_ss]
-delta0 = op_sol[delta_ss]
+Q0, h_surge0, dp_turbine0, opening0, delta0 = op_sol.u
 m_surge0 = rho * (pi * 6.0^2 / 4.0) * h_surge0
 
 println("homotopy_Q_m3s = ", Q0)
@@ -88,6 +83,7 @@ println("homotopy_surge_h_m = ", h_surge0)
 println("homotopy_turbine_dp_Pa = ", dp_turbine0)
 println("homotopy_opening = ", opening0)
 println("homotopy_delta_rad = ", delta0)
+println("homotopy_max_residual = ", maximum(abs, operating_point_residual(op_sol.u, nothing, 1.0)))
 
 # -----------------------------------------------------------------------------
 # 2. Full nonlinear acausal hydro -> shaft -> generator -> infinite bus model
