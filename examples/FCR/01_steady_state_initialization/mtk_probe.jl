@@ -1,12 +1,12 @@
 println("PROBE_START"); flush(stdout)
 
-println("PROBE_BEFORE_OPENHPLJL"); flush(stdout)
-using OpenHPLjl
-println("PROBE_AFTER_OPENHPLJL"); flush(stdout)
-
 println("PROBE_BEFORE_MODELINGTOOLKIT"); flush(stdout)
 using ModelingToolkit
 println("PROBE_AFTER_MODELINGTOOLKIT"); flush(stdout)
+
+println("PROBE_BEFORE_OPENHPLJL"); flush(stdout)
+using OpenHPLjl
+println("PROBE_AFTER_OPENHPLJL"); flush(stdout)
 
 println("PROBE_BEFORE_SCIMLBASE"); flush(stdout)
 using SciMLBase
