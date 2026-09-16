@@ -95,7 +95,7 @@ function fd_jacobian(f, x, λ)
     return J
 end
 
-function newton_at_lambda(u0, λ; tol=1e-11, maxiter=25)
+function newton_at_lambda(u0, λ; tol=1e-11, maxiter=30)
     x = copy(u0)
     for k in 1:maxiter
         r = residual(x, λ)
@@ -105,9 +105,9 @@ function newton_at_lambda(u0, λ; tol=1e-11, maxiter=25)
         step = -(J \ r)
         α = 1.0
         accepted = false
-        while α >= 1 / 1024
+        while α >= 1 / 4096
             xt = x .+ α .* step
-            if norm(residual(xt, λ), Inf) < nr
+            if all(isfinite, xt) && norm(residual(xt, λ), Inf) < nr
                 x = xt
                 accepted = true
                 break
@@ -120,12 +120,38 @@ function newton_at_lambda(u0, λ; tol=1e-11, maxiter=25)
     return x, norm(r, Inf) < tol, maxiter, norm(r, Inf)
 end
 
-for i in 1:30
-    λ = i / 30
-    global u
-    u, ok, iters, nr = newton_at_lambda(u, λ)
-    println("HOMOTOPY_STEP λ=", round(λ; digits=4), " ok=", ok, " iterations=", iters, " maxres=", nr)
-    ok || error("Homotopy continuation failed at λ=$λ")
+# Adaptive continuation: increase λ when Newton is easy, halve the step when
+# the nonlinear branch becomes difficult. This follows the solution path rather
+# than forcing a fixed Δλ through a turning/high-curvature region.
+λ = 0.0
+Δλ = 1 / 30
+Δλ_min = 1e-5
+Δλ_max = 0.05
+step_id = 0
+while λ < 1.0 - 1e-14
+    λ_trial = min(1.0, λ + Δλ)
+    u_trial, ok, iters, nr = newton_at_lambda(u, λ_trial)
+    step_id += 1
+    println("HOMOTOPY_STEP id=", step_id,
+            " λ_from=", round(λ; digits=6),
+            " λ_to=", round(λ_trial; digits=6),
+            " Δλ=", Δλ,
+            " ok=", ok,
+            " iterations=", iters,
+            " maxres=", nr)
+
+    if ok
+        global u = u_trial
+        global λ = λ_trial
+        if iters <= 4
+            global Δλ = min(Δλ_max, 1.35 * Δλ)
+        elseif iters >= 8
+            global Δλ = max(Δλ_min, 0.7 * Δλ)
+        end
+    else
+        global Δλ *= 0.5
+        Δλ >= Δλ_min || error("Adaptive homotopy step became too small near λ=$λ; last residual=$nr")
+    end
 end
 
 rfinal = residual(u, 1.0)
