@@ -122,6 +122,7 @@ end
 
 for i in 1:30
     λ = i / 30
+    global u
     u, ok, iters, nr = newton_at_lambda(u, λ)
     println("HOMOTOPY_STEP λ=", round(λ; digits=4), " ok=", ok, " iterations=", iters, " maxres=", nr)
     ok || error("Homotopy continuation failed at λ=$λ")
