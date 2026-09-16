@@ -11,10 +11,10 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 
 [compat]
 julia = "1.12"
-ModelingToolkit = "11"
-NonlinearSolve = "4"
-OrdinaryDiffEq = "6"
-SciMLBase = "2"
+ModelingToolkit = "11.37"
+NonlinearSolve = "4.29"
+OrdinaryDiffEq = "7"
+SciMLBase = "3"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
