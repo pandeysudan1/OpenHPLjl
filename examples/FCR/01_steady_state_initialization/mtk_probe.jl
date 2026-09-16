@@ -1,9 +1,22 @@
-using OpenHPLjl
-using ModelingToolkit
-using SciMLBase
-using LinearAlgebra
+println("PROBE_START"); flush(stdout)
 
-println("FCR Study 01 — MTK full-plant compile probe")
+println("PROBE_BEFORE_OPENHPLJL"); flush(stdout)
+using OpenHPLjl
+println("PROBE_AFTER_OPENHPLJL"); flush(stdout)
+
+println("PROBE_BEFORE_MODELINGTOOLKIT"); flush(stdout)
+using ModelingToolkit
+println("PROBE_AFTER_MODELINGTOOLKIT"); flush(stdout)
+
+println("PROBE_BEFORE_SCIMLBASE"); flush(stdout)
+using SciMLBase
+println("PROBE_AFTER_SCIMLBASE"); flush(stdout)
+
+println("PROBE_BEFORE_LINEARALGEBRA"); flush(stdout)
+using LinearAlgebra
+println("PROBE_AFTER_LINEARALGEBRA"); flush(stdout)
+
+println("FCR Study 01 — MTK full-plant compile probe"); flush(stdout)
 
 Q0 = 55.0
 h_surge0 = 117.63163567224585
@@ -28,7 +41,7 @@ println("PROBE_OPERATING_POINT Q=", Q0,
         " h=", h_surge0,
         " dp=", dp_turbine0,
         " opening=", opening0,
-        " delta=", delta0)
+        " delta=", delta0); flush(stdout)
 
 @named reservoir = ConstantLevelReservoir(h = h_res)
 @named headrace = HydroPipe(H = 0.0, L = L_hr, D_i = D_hr, D_o = D_hr, Vdot0 = Q0)
@@ -48,7 +61,7 @@ println("PROBE_OPERATING_POINT Q=", Q0,
 @named line = LosslessLine(X = X_line, Va = 1.0, Vb = 1.0)
 @named grid = InfiniteBus(theta = 0.0)
 
-println("PROBE_COMPONENTS_OK")
+println("PROBE_COMPONENTS_OK"); flush(stdout)
 
 eqs = [
     connect_hydraulic(reservoir.o, headrace.i),
@@ -61,7 +74,7 @@ eqs = [
     connect_electrical(generator.terminal, line.a),
     connect_electrical(line.b, grid.terminal),
 ]
-println("PROBE_CONNECTORS_OK count=", length(eqs))
+println("PROBE_CONNECTORS_OK count=", length(eqs)); flush(stdout)
 
 @named plant = System(
     eqs,
@@ -70,14 +83,14 @@ println("PROBE_CONNECTORS_OK count=", length(eqs))
                shaft, generator, line, grid],
 )
 println("PROBE_SYSTEM_OK unknowns_before=", length(unknowns(plant)),
-        " equations_before=", length(equations(plant)))
+        " equations_before=", length(equations(plant))); flush(stdout)
 
-println("PROBE_MTKCOMPILE_BEGIN")
+println("PROBE_MTKCOMPILE_BEGIN"); flush(stdout)
 sys = mtkcompile(plant)
 println("PROBE_MTKCOMPILE_OK unknowns=", length(unknowns(sys)),
-        " equations=", length(equations(sys)))
+        " equations=", length(equations(sys))); flush(stdout)
 
-println("PROBE_ODEPROBLEM_BEGIN")
+println("PROBE_ODEPROBLEM_BEGIN"); flush(stdout)
 prob = ODEProblem(
     sys,
     [],
@@ -87,18 +100,18 @@ prob = ODEProblem(
         turbine.dp => dp_turbine0,
     ],
 )
-println("PROBE_ODEPROBLEM_OK nstates=", length(prob.u0))
-println("PROBE_U0 = ", prob.u0)
+println("PROBE_ODEPROBLEM_OK nstates=", length(prob.u0)); flush(stdout)
+println("PROBE_U0 = ", prob.u0); flush(stdout)
 
 mass_matrix = try
     prob.f.mass_matrix
 catch
     nothing
 end
-println("PROBE_MASS_MATRIX_TYPE = ", typeof(mass_matrix))
+println("PROBE_MASS_MATRIX_TYPE = ", typeof(mass_matrix)); flush(stdout)
 if mass_matrix isa AbstractMatrix
-    println("PROBE_MASS_MATRIX_SIZE = ", size(mass_matrix))
-    println("PROBE_MASS_MATRIX_RANK = ", rank(Matrix(mass_matrix)))
+    println("PROBE_MASS_MATRIX_SIZE = ", size(mass_matrix)); flush(stdout)
+    println("PROBE_MASS_MATRIX_RANK = ", rank(Matrix(mass_matrix))); flush(stdout)
 end
 
-println("MTK_PROBE_OK = true")
+println("MTK_PROBE_OK = true"); flush(stdout)
