@@ -39,7 +39,7 @@ function darcy_factor_local(Re, D_h, eps_r)
             -64.0 / Re_lam^2,
             -0.25 * 0.316 / Re_tur^1.25,
         ]
-        K = X \\ Y
+        K = X \ Y
         return K[1] * Re^3 + K[2] * Re^2 + K[3] * Re + K[4]
     else
         arg = eps_r / (3.7D_h) + 5.74 / (Re + eps(Float64))^0.9
