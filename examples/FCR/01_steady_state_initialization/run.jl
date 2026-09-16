@@ -71,9 +71,23 @@ end
 
 op_prob = HomotopyProblem(operating_point_residual, u0_hom; λspan = (0.0, 1.0))
 println("homotopy_problem_type = ", typeof(op_prob))
-op_sol = solve(op_prob, HomotopySweep(nsteps = 30))
+op_alg = HomotopySweep(inner = NewtonRaphson(), nsteps = 30, adaptive = false)
+op_sol = solve(op_prob, op_alg; abstol = 1e-10, reltol = 1e-10, maxiters = 200)
 println("homotopy_retcode = ", op_sol.retcode)
-SciMLBase.successful_retcode(op_sol.retcode) || error("Homotopy operating-point solve failed")
+println("homotopy_u = ", op_sol.u)
+println("homotopy_resid_field = ", op_sol.resid)
+
+target_residual = operating_point_residual(op_sol.u, nothing, 1.0)
+target_max_residual = maximum(abs, target_residual)
+println("homotopy_target_residual = ", target_residual)
+println("homotopy_max_residual = ", target_max_residual)
+
+# Some current NonlinearSolve/SciMLBase combinations can leave the continuation
+# solution retcode at Default. The physical acceptance criterion is therefore
+# the target λ=1 residual, while still reporting the library retcode above.
+homotopy_ok = all(isfinite, op_sol.u) && target_max_residual < 1e-8
+println("HOMOTOPY_OK = ", homotopy_ok)
+homotopy_ok || error("Homotopy operating-point solve failed target-residual check")
 
 Q0, h_surge0, dp_turbine0, opening0, delta0 = op_sol.u
 m_surge0 = rho * (pi * 6.0^2 / 4.0) * h_surge0
@@ -83,7 +97,6 @@ println("homotopy_surge_h_m = ", h_surge0)
 println("homotopy_turbine_dp_Pa = ", dp_turbine0)
 println("homotopy_opening = ", opening0)
 println("homotopy_delta_rad = ", delta0)
-println("homotopy_max_residual = ", maximum(abs, operating_point_residual(op_sol.u, nothing, 1.0)))
 
 # -----------------------------------------------------------------------------
 # 2. Full nonlinear acausal hydro -> shaft -> generator -> infinite bus model
