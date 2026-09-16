@@ -5,9 +5,12 @@ WORKDIR /app
 ENV JULIA_PKG_PRECOMPILE_AUTO=0
 
 COPY Project.toml ./
-RUN julia --project=. -e 'using Pkg; Pkg.instantiate()'
+RUN julia --project=. -e 'using Pkg; Pkg.instantiate(; allow_autoprecomp=false)'
 
 COPY . .
 
-# Railway Study 01 runner: source must exist before package load.
-CMD ["julia", "--project=.", "examples/FCR/run.jl"]
+# Precompile the exact Study 01 stack at image-build time so the one-shot
+# Railway runtime goes directly to the homotopy/MTK solve.
+RUN julia --project=. -e 'using Pkg; Pkg.resolve(); Pkg.precompile(); using OpenHPLjl, ModelingToolkit, NonlinearSolve, OrdinaryDiffEq, SciMLBase, LinearAlgebra; println("FCR runtime stack ready")'
+
+CMD ["julia", "--startup-file=no", "--project=.", "examples/FCR/run.jl"]
