@@ -1,15 +1,15 @@
 using OpenHPLjl
 using ModelingToolkit
-using NonlinearSolve
 using OrdinaryDiffEq
 using SciMLBase
 using LinearAlgebra
 
-println("FCR Study 01 — HomotopyProblem initialization")
+println("FCR Study 01 — physical operating-point continuation")
 
 # -----------------------------------------------------------------------------
-# 1. Nonlinear hydro-electrical operating point solved by homotopy continuation
+# 1. Physical nonlinear hydro-electrical continuation to the target flow
 # -----------------------------------------------------------------------------
+Q_start = 20.0
 Q_target = 55.0
 rho = 1000.0
 g = 9.81
@@ -31,72 +31,76 @@ eta_h = 0.90
 Sbase = 100e6
 X_line = 0.50
 
-# Deliberately rough λ=0 seeds. The actual operating point is not hard-coded.
-h_seed = 105.0
-dp_seed = 1.70e6
-u_seed = 0.65
-delta_seed = 0.40
-u0_hom = [Q_target, h_seed, dp_seed, u_seed, delta_seed]
+function physical_operating_point(q)
+    q > 0 || error("Study 01 expects positive turbine flow")
 
-# SciML HomotopyProblem uses f(u, p, λ) = 0. At λ=0 the residual is the
-# simple seed system; at λ=1 it is the full nonlinear operating-point system.
-function operating_point_residual(u, p, λ)
+    v_hr = q / A_hr
+    F_hr = darcy_friction(v_hr, D_hr, L_hr, rho, mu, p_eps)
+    h = h_res - F_hr / (rho * g * A_hr)
+
+    v_pen = q / A_pen
+    F_pen = darcy_friction(v_pen, D_pen, L_pen, rho, mu, p_eps)
+    dp = rho * g * (h + H_pen) - F_pen / A_pen
+    dp > 0 || error("Non-positive turbine pressure drop at q=$q")
+
+    opening = sqrt(q * abs(q) / dp) / C_v
+    sin_delta = X_line * eta_h * dp * q / Sbase
+    abs(sin_delta) <= 1 || error("No stable small-angle electrical equilibrium at q=$q; sin(delta)=$sin_delta")
+    delta = asin(sin_delta)
+
+    return [q, h, dp, opening, delta]
+end
+
+function physical_residual(u, q_command)
     q, h, dp, opening, delta = u
-
     v_hr = q / A_hr
     v_pen = q / A_pen
     F_hr = darcy_friction(v_hr, D_hr, L_hr, rho, mu, p_eps)
     F_pen = darcy_friction(v_pen, D_pen, L_pen, rho, mu, p_eps)
 
-    actual = [
-        (q - Q_target) / Q_target,
-        ((rho * g * (h_res - h)) * A_hr - F_hr) /
-            (rho * g * h_res * A_hr),
-        ((rho * g * (h + H_pen) - dp) * A_pen - F_pen) /
-            (rho * g * (h_seed + H_pen) * A_pen),
+    return [
+        (q - q_command) / Q_target,
+        ((rho * g * (h_res - h)) * A_hr - F_hr) / (rho * g * h_res * A_hr),
+        ((rho * g * (h + H_pen) - dp) * A_pen - F_pen) / (rho * g * (h_res + H_pen) * A_pen),
         (dp * (C_v * opening)^2 - q * abs(q)) / Q_target^2,
         eta_h * dp * q / Sbase - (1 / X_line) * sin(delta),
     ]
-
-    simple = [
-        (q - Q_target) / Q_target,
-        (h - h_seed) / h_res,
-        (dp - dp_seed) / dp_seed,
-        opening - u_seed,
-        delta - delta_seed,
-    ]
-
-    return (1 - λ) .* simple .+ λ .* actual
 end
 
-op_prob = HomotopyProblem(operating_point_residual, u0_hom; λspan = (0.0, 1.0))
-println("homotopy_problem_type = ", typeof(op_prob))
-op_alg = HomotopySweep(inner = NewtonRaphson(), nsteps = 30, adaptive = false)
-op_sol = solve(op_prob, op_alg; abstol = 1e-10, reltol = 1e-10, maxiters = 200)
-println("homotopy_retcode = ", op_sol.retcode)
-println("homotopy_u = ", op_sol.u)
-println("homotopy_resid_field = ", op_sol.resid)
+op = nothing
+for i in 0:30
+    λ = i / 30
+    qλ = Q_start + λ * (Q_target - Q_start)
+    global op = physical_operating_point(qλ)
+    r = physical_residual(op, qλ)
+    maxres = norm(r, Inf)
+    println("FLOW_CONTINUATION_STEP λ=", round(λ; digits=4),
+            " Q_m3s=", op[1],
+            " h_m=", op[2],
+            " dp_Pa=", op[3],
+            " opening=", op[4],
+            " delta_rad=", op[5],
+            " maxres=", maxres)
+    maxres < 1e-10 || error("Physical continuation residual failed at λ=$λ")
+end
 
-target_residual = operating_point_residual(op_sol.u, nothing, 1.0)
-target_max_residual = maximum(abs, target_residual)
-println("homotopy_target_residual = ", target_residual)
-println("homotopy_max_residual = ", target_max_residual)
+op_residual = physical_residual(op, Q_target)
+op_max_residual = norm(op_residual, Inf)
+println("operating_point = ", op)
+println("operating_point_residual = ", op_residual)
+println("operating_point_max_residual = ", op_max_residual)
+operating_point_ok = all(isfinite, op) && op_max_residual < 1e-10
+println("OPERATING_POINT_OK = ", operating_point_ok)
+operating_point_ok || error("Physical operating-point continuation failed")
 
-# Some current NonlinearSolve/SciMLBase combinations can leave the continuation
-# solution retcode at Default. The physical acceptance criterion is therefore
-# the target λ=1 residual, while still reporting the library retcode above.
-homotopy_ok = all(isfinite, op_sol.u) && target_max_residual < 1e-8
-println("HOMOTOPY_OK = ", homotopy_ok)
-homotopy_ok || error("Homotopy operating-point solve failed target-residual check")
-
-Q0, h_surge0, dp_turbine0, opening0, delta0 = op_sol.u
+Q0, h_surge0, dp_turbine0, opening0, delta0 = op
 m_surge0 = rho * (pi * 6.0^2 / 4.0) * h_surge0
 
-println("homotopy_Q_m3s = ", Q0)
-println("homotopy_surge_h_m = ", h_surge0)
-println("homotopy_turbine_dp_Pa = ", dp_turbine0)
-println("homotopy_opening = ", opening0)
-println("homotopy_delta_rad = ", delta0)
+println("Q0_m3s = ", Q0)
+println("surge_h0_m = ", h_surge0)
+println("turbine_dp0_Pa = ", dp_turbine0)
+println("opening0 = ", opening0)
+println("delta0_rad = ", delta0)
 
 # -----------------------------------------------------------------------------
 # 2. Full nonlinear acausal hydro -> shaft -> generator -> infinite bus model
