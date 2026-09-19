@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - reservoir-model
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -11,10 +15,10 @@ permissions:
 
 jobs:
   build-pdf:
-    if: ${{ !contains(github.event.head_commit.message, '[skip pdf]') }}
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip pdf]') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
+      - name: Checkout Reservoir branch
         uses: actions/checkout@v4
         with:
           ref: reservoir-model
