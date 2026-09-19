@@ -71,3 +71,25 @@ end
     @test isapprox(expected_Q1, 0.981; atol = 1e-12)
     @test isapprox(simulated_Q1, expected_Q1; atol = 1e-8, rtol = 1e-8)
 end
+
+
+@testset "SurgeTank mass balance" begin
+    @named tank = SurgeTank(As = 100.0, H0 = 50.0)
+
+    boundary_eqs = [
+        tank.inlet.Q ~ 5.0
+        tank.outlet.Q ~ -3.0
+    ]
+
+    @named model = System(boundary_eqs, ModelingToolkit.t_nounits; systems = [tank])
+    compiled = mtkcompile(model)
+
+    prob = ODEProblem(compiled, [], (0.0, 10.0))
+    sol = solve(prob, Tsit5(); abstol = 1e-10, reltol = 1e-10)
+
+    expected_H10 = 50.0 + ((5.0 - 3.0) / 100.0) * 10.0
+    simulated_H10 = sol[compiled.tank.H][end]
+
+    @test isapprox(expected_H10, 50.2; atol = 1e-12)
+    @test isapprox(simulated_H10, expected_H10; atol = 1e-8, rtol = 1e-8)
+end
