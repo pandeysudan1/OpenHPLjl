@@ -5,6 +5,7 @@ on:
     branches:
       - reservoir-model
       - rigid-pipe-model
+      - turbine-model
   pull_request:
     branches:
       - main

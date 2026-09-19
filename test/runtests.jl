@@ -93,3 +93,19 @@ end
     @test isapprox(expected_H10, 50.2; atol = 1e-12)
     @test isapprox(simulated_H10, expected_H10; atol = 1e-8, rtol = 1e-8)
 end
+
+
+@testset "Turbine model family" begin
+    @named ideal = IdealTurbine(eta = 0.90)
+    @named gated = SimpleGateTurbine(eta = 0.90, Kq = 1.0, y = 0.5)
+
+    @test length(equations(ideal)) == 4
+    @test length(equations(gated)) == 5
+
+    H = 100.0
+    Q = 1.0 * 0.5 * sqrt(H)
+    Pm = 1000.0 * 9.81 * 0.90 * Q * H
+
+    @test isapprox(Q, 5.0; atol = 1e-12)
+    @test isapprox(Pm, 4.4145e6; atol = 1e-6)
+end
