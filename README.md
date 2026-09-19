@@ -508,3 +508,31 @@ Hydraulics -> Turbine -> Shaft -> Generator -> Grid
 ```
 
 Next: connect these components into one reduced electromechanical chain, then assemble the first complete hydropower SMIB example.
+
+
+## Release checkpoint — v0.1.0-alpha.1
+
+**Core Components Baseline**
+
+The first pass of the core physical model families is complete:
+
+```text
+Reservoir
+  -> RigidPipe
+  -> SurgeTank
+  -> Turbine
+  -> Shaft
+  -> Generator
+  -> Grid
+```
+
+This checkpoint establishes reusable ModelingToolkit components, acausal
+interfaces, analytical tests, friction-model selection, and Reports 1–8.
+
+See:
+
+- `CHANGELOG.md`
+- `docs/checkpoint_v0.1.0-alpha.1.md`
+
+The next milestone is **Connected Plant Baseline**: subsystem assemblies,
+initialization, and the first complete hydropower SMIB.
