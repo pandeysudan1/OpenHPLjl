@@ -8,7 +8,7 @@ println("ModelingToolkit version: ", Base.pkgversion(ModelingToolkit))
 println("OrdinaryDiffEq version: ", Base.pkgversion(OrdinaryDiffEq))
 
 @testset "OpenHPLjl package smoke test" begin
-    @test occursin("reservoir", lowercase(project_status()))
+    @test occursin("openhpljl", lowercase(project_status()))
 
     @named port = HydraulicPort()
     @test length(unknowns(port)) == 2
@@ -140,7 +140,7 @@ end
         friction = :darcy_constant,
         L = 100.0,
         A = 1.0,
-        D = 1.0,
+        diameter = 1.0,
         f = 0.02,
         Q0 = 1.0,
     )
