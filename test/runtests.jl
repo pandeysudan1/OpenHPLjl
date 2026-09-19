@@ -146,3 +146,48 @@ end
     )
     @test any(occursin("0.02", string(eq)) || occursin("f", string(eq)) for eq in equations(pipe))
 end
+
+
+@testset "LumpedShaft rotational dynamics" begin
+    @named shaft = LumpedShaft(J = 100.0, damping = 0.0, omega0 = 100.0)
+
+    boundary_eqs = [
+        shaft.drive.tau ~ 20.0
+        shaft.load.tau ~ -10.0
+    ]
+
+    @named model = System(boundary_eqs, ModelingToolkit.t_nounits; systems = [shaft])
+    compiled = mtkcompile(model)
+
+    prob = ODEProblem(compiled, [], (0.0, 2.0))
+    sol = solve(prob, Tsit5(); abstol = 1e-10, reltol = 1e-10)
+
+    expected = 100.0 + ((20.0 - 10.0) / 100.0) * 2.0
+    simulated = sol[compiled.shaft.omega][end]
+
+    @test isapprox(expected, 100.2; atol = 1e-12)
+    @test isapprox(simulated, expected; atol = 1e-8, rtol = 1e-8)
+end
+
+@testset "IdealGenerator power conversion" begin
+    eta = 0.98
+    tau = 1000.0
+    omega = 100.0
+    expected_Pe = eta * tau * omega
+
+    @test isapprox(expected_Pe, 98_000.0; atol = 1e-12)
+
+    @named gen = IdealGenerator(eta = eta)
+    @test length(equations(gen)) == 4
+end
+
+@testset "InfiniteGrid frequency boundary" begin
+    f0 = 50.0
+    expected_omega = 2 * pi * f0
+
+    @named grid = InfiniteGrid(f0 = f0)
+    sys = mtkcompile(grid)
+
+    @test isapprox(expected_omega, 100 * pi; atol = 1e-12)
+    @test length(equations(grid)) == 1
+end

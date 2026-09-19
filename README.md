@@ -433,3 +433,78 @@ independent of the chosen friction correlation.
 - **Compiled Report 5 PDF:** `docs/report_05_friction_models.pdf`
 
 Next: compare the registered laws in one RigidPipe simulation, then add transitional and unsteady-friction models where justified.
+
+
+## Shaft, generator, and grid model families
+
+The electromechanical side now follows the same model-family structure as the waterways and turbines.
+
+```text
+src/
+├── Interfaces/
+│   ├── RotationalPort.jl
+│   └── ElectricalPowerPort.jl
+├── Mechanical/
+│   └── Shafts/
+│       ├── LumpedShaft.jl
+│       └── README.md
+└── Electrical/
+    ├── Generators/
+    │   ├── IdealGenerator.jl
+    │   └── README.md
+    └── Grids/
+        ├── InfiniteGrid.jl
+        └── README.md
+```
+
+### LumpedShaft
+
+```math
+J\dot\omega
+=
+\tau_{drive}
++
+\tau_{load}
+-
+D(\omega-\omega_0).
+```
+
+### IdealGenerator
+
+```math
+P_m = \tau\omega,
+\qquad
+P_e = \eta_g P_m.
+```
+
+### InfiniteGrid
+
+```math
+\omega = 2\pi f_0.
+```
+
+The next coupled milestone is a reduced electromechanical chain:
+
+```text
+Turbine -> Shaft -> Generator -> InfiniteGrid
+```
+
+followed by a complete hydraulic-to-grid SMIB model.
+
+
+## Electromechanical technical reports
+
+- **Report 6 - Shaft Model Family:** `docs/report_06_shaft_models.tex`
+- **Compiled Report 6 PDF:** `docs/report_06_shaft_models.pdf`
+- **Report 7 - Generator Model Family:** `docs/report_07_generator_models.tex`
+- **Compiled Report 7 PDF:** `docs/report_07_generator_models.pdf`
+- **Report 8 - Grid Model Family:** `docs/report_08_grid_models.tex`
+- **Compiled Report 8 PDF:** `docs/report_08_grid_models.pdf`
+
+The progression is now:
+
+```text
+Hydraulics -> Turbine -> Shaft -> Generator -> Grid
+```
+
+Next: connect these components into one reduced electromechanical chain, then assemble the first complete hydropower SMIB example.

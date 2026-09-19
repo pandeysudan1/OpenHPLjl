@@ -1,0 +1,89 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,siunitx,hyperref,listings,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,pdftitle={Report 6 - Shaft Model Family for OpenHPL/OpenHPLjl},pdfauthor={Madhusudhan Pandey}}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,frame=single}
+\title{Report 6 - Shaft Model Family for OpenHPL/OpenHPLjl}
+\author{Madhusudhan Pandey}
+\date{19 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report introduces the shaft model family as the mechanical bridge between turbine torque and generator torque. The first implementation is a lumped single-inertia shaft with viscous damping and an acausal rotational connector.
+\end{abstract}
+\section{Updated Context}
+The shaft transfers turbine mechanical power to the generator:
+\[
+\boxed{\text{Turbine}\rightarrow\text{Shaft}\rightarrow\text{Generator}}.
+\]
+Its first role in OpenHPLjl is to represent rotational inertia and speed dynamics.
+
+\section{Generalized Concept Model}
+The shaft receives drive and load torques and exposes one common angular speed:
+\[
+\tau_{drive},\tau_{load}\rightarrow J\rightarrow\omega.
+\]
+
+\section{Other Models Available in the Literature}
+Useful model levels are
+\[
+\boxed{\text{rigid massless shaft}\rightarrow\text{single inertia}\rightarrow\text{two-mass torsional shaft}\rightarrow\text{distributed flexible shaft}}.
+\]
+
+\section{Mathematics Involved}
+For the lumped shaft,
+\[
+\boxed{J\dot\omega=\tau_{drive}+\tau_{load}-D(\omega-\omega_0)}.
+\]
+Mechanical power is
+\[
+P_m=\tau\omega.
+\]
+
+\section{OpenHPL-Specific Modeling Interpretation}
+OpenHPL includes rotational mechanical connections between turbine and generator. OpenHPLjl mirrors that physical interface with an acausal rotational port containing angular speed and flow-conserved torque.
+
+\section{Implementation in Julia ModelingToolkit / SciML}
+\begin{lstlisting}
+@connector RotationalPort begin
+    omega(t)
+    tau(t), [connect = Flow]
+end
+
+@component function LumpedShaft(; name,
+    J=1e5, damping=0.0, omega0=2*pi*50)
+    ...
+    J * D(omega) ~ drive.tau + load.tau -
+                   damping*(omega-omega0)
+end
+\end{lstlisting}
+
+\section{Model Assembly and Connections}
+The shaft is intended to connect the turbine mechanical port to the generator mechanical port. The next package step will give the turbine an explicit rotational connector.
+
+\section{Numerical Experiment / Validation}
+For
+\[
+J=100,\quad\tau_{drive}=20,\quad\tau_{load}=-10,
+\]
+the acceleration is
+\[
+\dot\omega=\frac{10}{100}=0.1~\si{\radian\per\second\squared}.
+\]
+Starting at $100~\si{\radian\per\second}$,
+\[
+\boxed{\omega(2)=100.2~\si{\radian\per\second}}.
+\]
+
+\section{Expected Outputs}
+Key outputs are
+\[
+\omega(t),\quad\dot\omega(t),\quad\tau_{drive}(t),\quad\tau_{load}(t).
+\]
+
+\section{Engineering Interpretation}
+The shaft introduces mechanical inertia, the central storage mechanism governing electromechanical frequency dynamics.
+
+\section*{Conclusion}
+The first shaft model is intentionally minimal. Next steps are a two-mass torsional model and explicit coupling to turbine torque and generator electromagnetic torque.
+\end{document}
