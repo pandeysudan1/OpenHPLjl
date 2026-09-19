@@ -17,7 +17,7 @@ FRICTION_MODEL_REGISTRY.
     A = 1.0,
     g = 9.81,
     R = 0.0,
-    D = sqrt(4 * A / pi),
+    diameter = sqrt(4 * A / pi),
     nu = 1.0e-6,
     epsilon = 1.0e-4,
     f = 0.02,
@@ -31,7 +31,7 @@ FRICTION_MODEL_REGISTRY.
         A = A
         g = g
         R = R
-        D = D
+        diameter = diameter
         nu = nu
         epsilon = epsilon
         f = f
@@ -46,7 +46,7 @@ FRICTION_MODEL_REGISTRY.
         Q;
         R = R,
         L = L,
-        D = D,
+        D = diameter,
         A = A,
         g = g,
         nu = nu,
@@ -64,7 +64,7 @@ FRICTION_MODEL_REGISTRY.
         eqs,
         t,
         [Q],
-        [L, A, g, R, D, nu, epsilon, f];
+        [L, A, g, R, diameter, nu, epsilon, f];
         systems = [inlet, outlet],
         name = name,
     )
