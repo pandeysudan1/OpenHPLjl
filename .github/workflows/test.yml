@@ -6,6 +6,7 @@ on:
       - reservoir-model
       - rigid-pipe-model
       - turbine-model
+      - friction-models
   pull_request:
     branches:
       - main
