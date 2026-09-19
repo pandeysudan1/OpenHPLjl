@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - shaft-generator-grid-models
+  pull_request:
+    branches:
+      - friction-models
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +15,7 @@ permissions:
 
 jobs:
   build-pdfs:
-    if: ${{ !contains(github.event.head_commit.message, '[skip pdf678]') }}
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip pdf678]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
