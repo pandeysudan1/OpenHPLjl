@@ -191,3 +191,26 @@ end
     @test isapprox(expected_omega, 100 * pi; atol = 1e-12)
     @test length(equations(grid)) == 1
 end
+
+
+@testset "Literature model-family registry" begin
+    families = available_model_families()
+    @test haskey(families, :reservoirs)
+    @test haskey(families, :turbines)
+    @test haskey(families, :generators)
+    @test any(x -> x.name == :ElasticPenstock, families[:rigidpipes])
+    @test any(x -> x.name == :ClassicalGenerator, families[:generators])
+end
+
+@testset "Literature-family prototype components" begin
+    @named nr = NonlinearReservoir(A0 = 1000.0, kA = 10.0, Href = 100.0, H0 = 100.0)
+    @named qp = QuasiSteadyPipe(R = 0.2)
+    @named shaft2 = TwoMassShaft(J1 = 100.0, J2 = 120.0)
+
+    @test !isempty(equations(nr))
+    @test length(equations(qp)) == 3
+    @test length(equations(shaft2)) == 6
+
+    f = blended_friction_factor(3000.0; epsilon = 1e-4, D = 1.0)
+    @test f > 0
+end
