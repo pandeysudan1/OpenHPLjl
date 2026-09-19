@@ -105,6 +105,11 @@ OpenHPLjl is intended to support more than time-domain simulation. Planned analy
 ```text
 OpenHPLjl/
 ├── src/
+│   ├── Interfaces/
+│   │   └── HydraulicPort.jl
+│   ├── Reservoirs/
+│   │   ├── InfiniteReservoir.jl
+│   │   └── Reservoir.jl
 │   └── OpenHPLjl.jl
 ├── test/
 │   └── runtests.jl
@@ -231,17 +236,37 @@ Report 1 mathematics
     -> simulation/validation plots
 ```
 
+### Current source milestone
+
+The first equation-based source components are now organized as:
+
+```text
+src/
+├── Interfaces/
+│   └── HydraulicPort.jl
+├── Reservoirs/
+│   ├── InfiniteReservoir.jl
+│   └── Reservoir.jl
+└── OpenHPLjl.jl
+```
+
+The hydraulic sign convention is **flow positive into a component**. The finite reservoir therefore uses
+
+```math
+A\dot H = Q_{in} + Q_{port}.
+```
+
+For generation outflow, `Q_port < 0`.
+
 ### Next commit
 
 The next implementation commit should add:
 
-- `src/Interfaces/HydraulicPort.jl`
-- `src/Reservoirs/InfiniteReservoir.jl`
-- `src/Reservoirs/Reservoir.jl`
-- reservoir exports from `src/OpenHPLjl.jl`
-- analytical conservation tests in `test/`
-- one minimal simulation example
-- expected-output checks for head and flow
+- one minimal reservoir simulation example under `examples/`
+- expected-output plots for head and flow
+- a nonlinear-geometry reservoir variant
+- equation/unknown-count diagnostics
+- CI timing summary from the real Julia 1.12 / ModelingToolkit 11 run
 - documentation links from this README
 
 After the reservoir component is validated, the next modeling branch should introduce the **RigidPipe** from momentum conservation and water inertia.
@@ -249,12 +274,12 @@ After the reservoir component is validated, the next modeling branch should intr
 ## Next steps
 
 - [ ] Define notation, SI units, sign conventions, and modeling rules.
-- [ ] Implement `HydraulicPort`.
+- [x] Implement `HydraulicPort`.
 - [x] Write **Report 1: Reservoir** in `docs/report_01_reservoir.tex`.
 - [x] Compile Report 1 to `docs/report_01_reservoir.pdf` on the `reservoir-model` branch.
-- [ ] Implement constant-head reservoir.
-- [ ] Implement finite-storage reservoir.
-- [ ] Add analytical reservoir mass-balance tests.
+- [x] Implement constant-head reservoir.
+- [x] Implement finite-storage reservoir.
+- [x] Add analytical reservoir mass-balance tests.
 - [ ] Implement `RigidPipe` from momentum balance.
 - [ ] Add step/ramp experiments for the first waterway.
 - [ ] Introduce `SurgeTank` and validate its oscillation.
