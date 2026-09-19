@@ -1,0 +1,21 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=20mm]{geometry}
+\usepackage{amsmath,amssymb,hyperref,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\title{Report 37 - DifferentialSurgeTank Model}
+\author{Madhusudhan Pandey}
+\date{20 September 2026}
+\begin{document}\maketitle
+\begin{abstract}This report documents the DifferentialSurgeTank model family in OpenHPLjl. Catalogue status: \textbf{planned}.\end{abstract}
+\section{Updated Engineering Context}Differential or multi-chamber surge tank. It belongs to the Surge tanks domain.
+\section{Generalized Concept Model}The model preserves the domain connector interface while allowing internal fidelity to evolve independently.
+\section{Alternative Models Available in Literature}This family sits on the common fidelity ladder: boundary/algebraic, lumped dynamic, nonlinear physics-based, and distributed/high-order.
+\section{Governing Mathematics}\[A_1\dot H_1=Q_{in}-Q_{12},\quad A_2\dot H_2=Q_{12}-Q_{out}\]The production model may add states, constitutive relations, lookup maps, or spatial discretization.
+\section{OpenHPL / Modelica Interpretation}Report 9 maps this family to the closest OpenHPL, Modelica Standard Library, or OpenIPSL analogue.
+\section{Julia / ModelingToolkit Implementation}Source: \texttt{\detokenize{src/Waterways/SurgeTanks/DifferentialSurgeTank.jl}}. The file is either an implemented component or an explicit Julia source specification.
+\section{Component Connections and Assembly}The model connects through the stable physical connector for its domain and should not expose internal fidelity choices to neighbouring components.
+\section{Numerical Experiment / Validation}Promotion requires an equation-level test, component experiment, limiting-case comparison, structural check, and connected-system test.
+\section{Expected Outputs}Expected outputs are the physical states, connector variables, and conservation or residual quantities needed to verify this family.
+\section{Engineering Interpretation}Implement after throttled and orifice families are stable.
+\section*{Conclusion}DifferentialSurgeTank now has an explicit source/report pair. Promotion to baseline requires validated equations, parameters, tests, and reference behaviour.
+\end{document}
