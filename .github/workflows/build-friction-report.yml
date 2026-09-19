@@ -1,0 +1,39 @@
+name: Build Friction Report PDF
+
+on:
+  push:
+    branches:
+      - friction-models
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    if: ${{ !contains(github.event.head_commit.message, '[skip pdf5]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: friction-models
+          fetch-depth: 0
+
+      - name: Compile friction report
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_05_friction_models.tex
+          working_directory: docs
+
+      - name: Commit compiled PDF
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_05_friction_models.pdf
+          if git diff --cached --quiet; then
+            echo "PDF unchanged"
+          else
+            git commit -m "Build Friction Report 5 PDF [skip pdf5]"
+            git push origin friction-models
+          fi
