@@ -33,3 +33,24 @@ For every current source-domain folder, document:
 - README roadmap update
 - literature/reference table
 - implementation-priority table
+
+
+## Literature anchors
+
+Primary references used for the overview:
+
+- OpenHPL 3.0.1 User Guide and Waterway documentation
+- OpenHPL simple, Francis and Pelton turbine documentation
+- OpenHPL surge-tank and Darcy-friction documentation
+- ModelingToolkit acausal component documentation
+- Modelica Standard Library Rotational mechanics
+- OpenIPSL PSSE machine models and SMIB tests
+- 2025 Energies review of rigid/elastic water-hammer models
+- surge-tank review literature
+- turbine hill-chart/performance-curve literature
+
+The study intentionally distinguishes:
+- reduced/control-oriented models,
+- lumped nonlinear physics models,
+- higher-order/distributed models,
+- data/lookup-based models.
