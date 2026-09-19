@@ -574,3 +574,65 @@ TurbineLookup
   -> ThrottledSurgeTank
   -> ElasticPenstock
 ```
+
+
+## Literature model families source catalogue
+
+The `literature-model-families` branch converts the Report 9 literature map
+into explicit source families.
+
+Key additions:
+
+```text
+src/ModelFamilies/ModelFamilyRegistry.jl
+
+Reservoirs/
+  NonlinearReservoir.jl
+  ReservoirChannel.md
+
+FrictionModels/
+  TransitionalFriction.jl
+  UnsteadyFriction.md
+
+Waterways/RigidPipes/
+  QuasiSteadyPipe.jl
+  ElasticPenstock.jl
+  MOCWaterway.md
+  FiniteVolumeWaterway.md
+
+Waterways/SurgeTanks/
+  ThrottledSurgeTank.jl
+  OrificeSurgeTank.jl
+  AirCushionSurgeTank.jl
+  VariableAreaSurgeTank.jl
+  DifferentialSurgeTank.md
+
+Turbines/
+  TurbineLookup.jl
+  FrancisTurbine.jl
+  PeltonTurbine.jl
+  KaplanTurbine.jl
+
+Mechanical/Shafts/
+  TwoMassShaft.jl
+  MultiMassShaft.md
+
+Electrical/Generators/
+  ClassicalGenerator.jl
+  FourthOrderGenerator.jl
+  SixthOrderGenerator.md
+  SalientPoleGenerator.md
+  RoundRotorGenerator.md
+
+Electrical/Grids/
+  AggregateGrid.jl
+  SMIBGrid.jl
+  MultiMachineGrid.md
+  EMTGrid.md
+```
+
+The machine-readable registry marks every family as `:baseline`, `:prototype`,
+or `:planned`. A source file alone does not mean the model is validated.
+
+- **Report 10:** `docs/report_10_literature_model_families_catalogue.tex`
+- **Compiled PDF:** `docs/report_10_literature_model_families_catalogue.pdf`
