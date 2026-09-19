@@ -1,0 +1,51 @@
+name: Build Shaft Generator Grid Reports
+
+on:
+  push:
+    branches:
+      - shaft-generator-grid-models
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdfs:
+    if: ${{ !contains(github.event.head_commit.message, '[skip pdf678]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: shaft-generator-grid-models
+          fetch-depth: 0
+
+      - name: Compile Report 6 - Shaft
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_06_shaft_models.tex
+          working_directory: docs
+
+      - name: Compile Report 7 - Generator
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_07_generator_models.tex
+          working_directory: docs
+
+      - name: Compile Report 8 - Grid
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_08_grid_models.tex
+          working_directory: docs
+
+      - name: Commit compiled PDFs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_06_shaft_models.pdf docs/report_07_generator_models.pdf docs/report_08_grid_models.pdf
+          if git diff --cached --quiet; then
+            echo "PDFs unchanged"
+          else
+            git commit -m "Build Reports 6-8 PDFs [skip pdf678]"
+            git push origin shaft-generator-grid-models
+          fi
