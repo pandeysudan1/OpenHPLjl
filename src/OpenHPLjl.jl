@@ -7,10 +7,11 @@ include("Interfaces/HydraulicPort.jl")
 include("Reservoirs/InfiniteReservoir.jl")
 include("Reservoirs/Reservoir.jl")
 include("Waterways/RigidPipe.jl")
+include("Waterways/SurgeTank.jl")
 
 export HydraulicPort
 export InfiniteReservoir, Reservoir
-export RigidPipe
+export RigidPipe, SurgeTank
 export project_status
 
 """
@@ -18,6 +19,6 @@ export project_status
 
 Return the current project phase.
 """
-project_status() = "OpenHPLjl rigid-pipe milestone: reservoir storage plus waterway momentum"
+project_status() = "OpenHPLjl waterway milestone: reservoir, rigid pipe, and surge tank"
 
 end
