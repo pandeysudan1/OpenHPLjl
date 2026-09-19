@@ -8,6 +8,7 @@ on:
       - turbine-model
       - friction-models
       - shaft-generator-grid-models
+      - literature-model-families
   pull_request:
     branches:
       - main
