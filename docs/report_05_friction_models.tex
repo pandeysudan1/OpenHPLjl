@@ -1,0 +1,170 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,siunitx,hyperref,listings,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,pdftitle={Report 5 - Friction Model Registry for OpenHPL/OpenHPLjl},pdfauthor={Madhusudhan Pandey}}
+\lstdefinelanguage{Julia}{keywords={using,begin,end,function,return,const,module,export,include},sensitive=true,comment=[l]\#,morestring=[b]"}
+\lstset{language=Julia,basicstyle=\ttfamily\small,breaklines=true,frame=single,columns=fullflexible,showstringspaces=false}
+\title{Report 5 - Friction Model Registry for OpenHPL/OpenHPLjl}
+\author{Madhusudhan Pandey}
+\date{19 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report separates hydraulic friction from the RigidPipe momentum equation and introduces a build-time friction-model registry for OpenHPLjl. The objective is to keep the waterway equations reusable while allowing simple quadratic losses, Darcy-Weisbach models, laminar friction, and explicit turbulent correlations to be selected without changing the component architecture.
+\end{abstract}
+
+\section{Updated Context}
+The first rigid-pipe model used the compact hydropower loss law
+\[
+H_f=RQ|Q|.
+\]
+This is useful for control-oriented studies, but the coefficient $R$ hides pipe geometry, roughness, viscosity, and flow regime. OpenHPL includes a Darcy-friction function that distinguishes laminar, transition, and turbulent regimes, so OpenHPLjl now separates friction laws into a reusable function family.
+
+\section{Generalized Concept Model}
+The waterway momentum equation remains
+\[
+\frac{L}{gA}\dot Q=H_{\rm in}-H_{\rm out}-H_f(Q).
+\]
+Only the constitutive relation $H_f(Q)$ changes. The architecture is therefore
+\[
+\boxed{\text{RigidPipe momentum balance}+\text{selectable friction law}}.
+\]
+A friction model is selected when the ModelingToolkit system is constructed.
+
+\section{Other Models Available in the Literature}
+The first registry contains
+\[
+\boxed{\text{none}\rightarrow\text{quadratic}\rightarrow\text{Darcy constant-}f\rightarrow\text{laminar}\rightarrow\text{Haaland / Swamee-Jain}}.
+\]
+The implicit Colebrook-White equation is retained as a residual function for later solution with a nonlinear solver. More detailed models can later include transitional blending, unsteady friction, local fitting losses, and frequency-dependent wall friction.
+
+\section{Mathematics Involved in the OpenHPL Concept/Model}
+The Darcy-Weisbach head loss is
+\[
+\boxed{H_f=f_D\frac{L}{D}\frac{Q|Q|}{2gA^2}}.
+\]
+The Reynolds number for a circular pipe is
+\[
+Re=\frac{4|Q|}{\pi D\nu}.
+\]
+For laminar flow,
+\[
+\boxed{f_D=\frac{64}{Re}}.
+\]
+The Haaland explicit turbulent approximation is
+\[
+\frac{1}{\sqrt{f_D}}
+=
+-1.8\log_{10}\left[
+\left(\frac{\epsilon}{3.7D}\right)^{1.11}
++
+\frac{6.9}{Re}
+\right].
+\]
+The Swamee-Jain form is
+\[
+f_D=
+\frac{0.25}{
+\left[
+\log_{10}\left(
+\frac{\epsilon}{3.7D}
++
+\frac{5.74}{Re^{0.9}}
+\right)
+\right]^2
+}.
+\]
+The Colebrook-White relation is implicit in $f_D$ and therefore naturally belongs to a nonlinear-solve layer.
+
+\section{OpenHPL-Specific Modeling Interpretation}
+OpenHPL's pipe model is based on the momentum equation with friction and gravity forces, and its Darcy-friction helper distinguishes flow regimes. The OpenHPLjl implementation follows the same separation of physical momentum balance from friction-factor calculation while keeping the first implementation explicit and easy to test.
+
+\section{Implementation in Julia ModelingToolkit / SciML}
+The friction family is stored independently from waterways:
+
+\begin{lstlisting}
+src/FrictionModels/
+|-- FrictionFunctions.jl
+|-- FrictionRegistry.jl
+|-- README.md
+\end{lstlisting}
+
+The registry is
+
+\begin{lstlisting}
+const FRICTION_MODEL_REGISTRY = Dict(
+    :none => no_friction,
+    :quadratic => quadratic_head_loss,
+    :darcy_constant => darcy_head_loss,
+    :darcy_laminar => darcy_laminar_head_loss,
+    :darcy_haaland => darcy_haaland_head_loss,
+    :darcy_swamee_jain => darcy_swamee_jain_head_loss,
+)
+\end{lstlisting}
+
+A pipe selects a law at construction time:
+
+\begin{lstlisting}
+@named pipe = RigidPipe(
+    friction = :darcy_haaland,
+    L = 1000.0,
+    diameter = 3.0,
+    nu = 1e-6,
+    epsilon = 1e-4,
+)
+\end{lstlisting}
+
+\section{Model Assembly and Connections}
+The RigidPipe momentum model is unchanged conceptually:
+\[
+\dot Q=\frac{gA}{L}
+\left(H_{\rm in}-H_{\rm out}-H_f(Q)\right).
+\]
+Only $H_f$ is supplied by the selected registry function. This makes the same friction family reusable later in penstocks, tailraces, surge-shaft throttles, and fitting models.
+
+\section{Numerical Experiment / Validation}
+For a simple quadratic model,
+\[
+R=0.5,\qquad Q=2~\si{\meter\cubed\per\second},
+\]
+the expected signed loss is
+\[
+\boxed{H_f=0.5\times2\times2=2~\si{\meter}}.
+\]
+For laminar flow at $Re=1000$,
+\[
+\boxed{f_D=64/1000=0.064}.
+\]
+The unit tests also verify that Haaland and Swamee-Jain produce physically plausible positive Darcy factors for a turbulent test point.
+
+\section{Expected Outputs}
+Useful outputs from friction studies are
+\[
+Re(t),\qquad f_D(t),\qquad H_f(t),\qquad \Delta H(t),\qquad Q(t).
+\]
+Comparison plots should show head loss versus flow for each registered model and the resulting change in waterway damping.
+
+\section{Engineering Interpretation}
+The compact coefficient $R$ remains valuable for identified or reduced-order hydropower models. Darcy-Weisbach models are more appropriate when geometry, roughness, and viscosity are known. A registry allows these choices to coexist:
+\[
+\boxed{\text{identified }R\quad\leftrightarrow\quad\text{physics-based Darcy friction}}.
+\]
+This is useful for FREKI because friction can later be calibrated from measurements without rewriting the waterway model.
+
+\section*{Conclusion}
+OpenHPLjl now treats friction as a model family rather than a fixed term. The next step is to compare the registered laws in one RigidPipe simulation and then add transitional and unsteady-friction options where needed.
+
+\begin{thebibliography}{9}
+\bibitem{OpenHPLDarcy}
+OpenHPL, Darcy friction factor function.
+\url{https://build.openmodelica.org/Documentation/OpenHPL.Functions.DarcyFriction.fDarcy.html}
+
+\bibitem{OpenHPLPipe}
+OpenHPL, Pipe model.
+\url{https://build.openmodelica.org/Documentation/OpenHPL.Waterway.Pipe.html}
+
+\bibitem{OpenHydraulics}
+OpenHydraulics wall friction documentation: Swamee-Jain and Colebrook-White forms.
+\url{https://build.openmodelica.org/Documentation/OpenHydraulics.Basic.WallFriction.html}
+\end{thebibliography}
+\end{document}
