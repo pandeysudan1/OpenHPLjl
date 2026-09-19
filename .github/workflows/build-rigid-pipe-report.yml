@@ -1,0 +1,43 @@
+name: Build RigidPipe Report PDF
+
+on:
+  push:
+    branches:
+      - rigid-pipe-model
+  pull_request:
+    branches:
+      - reservoir-model
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip pdf2]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RigidPipe branch
+        uses: actions/checkout@v4
+        with:
+          ref: rigid-pipe-model
+          fetch-depth: 0
+
+      - name: Compile LaTeX report
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_02_rigid_pipe.tex
+          working_directory: docs
+
+      - name: Commit compiled PDF
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_02_rigid_pipe.pdf
+          if git diff --cached --quiet; then
+            echo "PDF unchanged"
+          else
+            git commit -m "Build RigidPipe Report 2 PDF [skip pdf2]"
+            git push origin rigid-pipe-model
+          fi

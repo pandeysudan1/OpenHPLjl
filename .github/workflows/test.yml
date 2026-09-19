@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - reservoir-model
+      - rigid-pipe-model
   pull_request:
     branches:
       - main

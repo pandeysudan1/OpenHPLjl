@@ -1,0 +1,39 @@
+name: Build SurgeTank Report PDF
+
+on:
+  push:
+    branches:
+      - rigid-pipe-model
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    if: ${{ !contains(github.event.head_commit.message, '[skip pdf3]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: rigid-pipe-model
+          fetch-depth: 0
+
+      - name: Compile SurgeTank report
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_03_surge_tank.tex
+          working_directory: docs
+
+      - name: Commit compiled PDF
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_03_surge_tank.pdf
+          if git diff --cached --quiet; then
+            echo "PDF unchanged"
+          else
+            git commit -m "Build SurgeTank Report 3 PDF [skip pdf3]"
+            git push origin rigid-pipe-model
+          fi
