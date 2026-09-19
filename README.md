@@ -282,7 +282,8 @@ After the reservoir component is validated, the next modeling branch should intr
 - [x] Add analytical reservoir mass-balance tests.
 - [x] Implement `RigidPipe` from momentum balance.
 - [x] Add analytical head-step test for the first waterway.
-- [ ] Introduce `SurgeTank` and validate its oscillation.
+- [x] Introduce basic `SurgeTank` storage model and analytical mass-balance test.
+- [ ] Validate the coupled RigidPipe-SurgeTank oscillation.
 - [ ] Add turbine model and characteristic lookup-table interface.
 - [ ] Assemble the first reservoir-to-turbine hydraulic system.
 - [ ] Add shaft, generator, infinite bus, and governor models.
@@ -322,4 +323,14 @@ pdflatex report_01_reservoir.tex
 
 Report 2 is intentionally concise and follows the same 10-part structure as Report 1.
 
-The next report/component will cover the **SurgeTank**, coupling waterway momentum with local hydraulic storage.
+The basic **SurgeTank** component is now included in `src/Waterways/SurgeTank.jl`.
+
+Its storage equation is
+
+```math
+A_s \dot H_s = Q_{in} + Q_{out},
+```
+
+using the package convention that port flow is positive into a component.
+
+The next validation step is a **coupled RigidPipe-SurgeTank system**, where water inertia and tank storage create the first hydraulic oscillatory mode.
