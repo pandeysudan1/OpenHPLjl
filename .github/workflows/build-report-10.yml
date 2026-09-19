@@ -1,0 +1,39 @@
+name: Build Report 10 Literature Families Catalogue
+
+on:
+  push:
+    branches:
+      - literature-model-families
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    if: ${{ !contains(github.event.head_commit.message, '[skip pdf10]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: literature-model-families
+          fetch-depth: 0
+
+      - name: Compile Report 10
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_10_literature_model_families_catalogue.tex
+          working_directory: docs
+
+      - name: Commit compiled PDF
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_10_literature_model_families_catalogue.pdf
+          if git diff --cached --quiet; then
+            echo "PDF unchanged"
+          else
+            git commit -m "Build Report 10 literature families PDF [skip pdf10]"
+            git pull --rebase origin literature-model-families
+            git push origin literature-model-families
+          fi
