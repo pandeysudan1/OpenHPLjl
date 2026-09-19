@@ -1,0 +1,190 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,siunitx,hyperref,listings,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,pdftitle={Report 3 - Surge Tank Model for OpenHPL/OpenHPLjl},pdfauthor={Madhusudhan Pandey}}
+\lstdefinelanguage{Julia}{keywords={using,begin,end,function,return,if,else,for,while,module,export,include},sensitive=true,comment=[l]\#,morestring=[b]"}
+\lstset{language=Julia,basicstyle=\ttfamily\small,breaklines=true,frame=single,columns=fullflexible,showstringspaces=false}
+\title{Report 3 - Surge Tank Model for OpenHPL/OpenHPLjl}
+\author{Madhusudhan Pandey}
+\date{19 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report introduces the surge tank as the third hydraulic component in OpenHPLjl. It adds local hydraulic storage to the waterway and prepares the model chain for coupled water-inertia and free-surface oscillations. The presentation follows the same concise structure used for the reservoir and rigid-pipe reports.
+\end{abstract}
+
+\section{Updated Context}
+A surge tank is a hydraulic storage element placed in a waterway to reduce rapid pressure changes and provide temporary water volume during changes in turbine flow. In the OpenHPLjl development sequence,
+\[
+\boxed{\text{Reservoir}\rightarrow\text{RigidPipe}\rightarrow\text{SurgeTank}\rightarrow\text{Penstock}\rightarrow\text{Turbine}}.
+\]
+The reservoir introduced storage, while the rigid pipe introduced water inertia. The surge tank now couples local storage with the surrounding waterway dynamics.
+
+\section{Generalized Concept Model}
+The simplest surge tank contains one water-level state and two hydraulic ports:
+\[
+\boxed{(H_{\rm in},Q_{\rm in})\rightarrow\text{SurgeTank storage}\rightarrow(H_{\rm out},Q_{\rm out})}.
+\]
+For an open tank with constant cross-sectional area $A_s$,
+\[
+V_s=A_sH_s.
+\]
+With the OpenHPLjl convention that port flow is positive into the component,
+\[
+A_s\dot H_s=Q_{\rm in}+Q_{\rm out}.
+\]
+Both connected hydraulic ports share the tank head:
+\[
+H_{\rm in}=H_s,\qquad H_{\rm out}=H_s.
+\]
+
+\section{Other Models Available in the Literature}
+Common surge-tank models include:
+\[
+\boxed{\text{simple constant-area tank}\rightarrow\text{variable-area tank}\rightarrow\text{throttled tank}\rightarrow\text{differential surge tank}}.
+\]
+A simple tank uses only a storage equation. A variable-area tank uses $A_s(H_s)$. A throttled surge tank adds a local loss relation between the waterway and the tank. Differential surge tanks add additional internal levels or flow paths to modify oscillatory behaviour.
+
+\section{Mathematics Involved in the OpenHPL Concept/Model}
+The mass balance is
+\[
+\frac{dV_s}{dt}=Q_{\rm in}+Q_{\rm out}.
+\]
+For constant area,
+\[
+V_s=A_sH_s,
+\]
+hence
+\[
+\boxed{A_s\dot H_s=Q_{\rm in}+Q_{\rm out}}.
+\]
+The state is
+\[
+x=H_s.
+\]
+The tank therefore behaves as a hydraulic capacitance: a net positive inflow raises the free surface, while a net negative inflow lowers it.
+
+For variable area,
+\[
+A_s(H_s)\dot H_s=Q_{\rm in}+Q_{\rm out}.
+\]
+
+\section{OpenHPL-Specific Modeling Interpretation}
+OpenHPL models waterways using conservation laws and component connections. A surge tank acts as a local storage node in the hydraulic network. In a reduced model, the tank can be represented by the mass-balance equation alone, while neighbouring conduit models supply the momentum equations. This separation is useful because the same surge tank can later be connected to rigid or elastic waterways without changing its connector interface.
+
+\section{Implementation in Julia ModelingToolkit / SciML}
+The component reuses the existing \texttt{HydraulicPort} connector.
+
+\begin{lstlisting}
+@component function SurgeTank(; name,
+    As = 100.0,
+    H0 = 100.0)
+
+    @named inlet = HydraulicPort()
+    @named outlet = HydraulicPort()
+
+    @parameters begin
+        As = As
+        H0 = H0
+    end
+
+    @variables begin
+        H(t) = H0
+    end
+
+    eqs = [
+        As * D(H) ~ inlet.Q + outlet.Q
+        inlet.H ~ H
+        outlet.H ~ H
+    ]
+
+    System(
+        eqs, t, [H], [As,H0];
+        systems=[inlet,outlet],
+        name=name)
+end
+\end{lstlisting}
+
+\section{Model Assembly and Connections}
+A first coupled hydraulic chain is
+\begin{lstlisting}
+@named reservoir = InfiniteReservoir(H0 = 100.0)
+@named pipe = RigidPipe(L = 100.0, A = 1.0)
+@named tank = SurgeTank(As = 100.0, H0 = 95.0)
+
+connections = [
+    connect(reservoir.port, pipe.inlet)
+    connect(pipe.outlet, tank.inlet)
+]
+\end{lstlisting}
+A downstream penstock, valve, turbine, or flow boundary completes the system.
+
+\section{Numerical Experiment / Validation}
+For
+\[
+A_s=100~\si{\meter\squared},\qquad
+H_s(0)=50~\si{\meter},
+\]
+and
+\[
+Q_{\rm in}=5~\si{\meter\cubed\per\second},\qquad
+Q_{\rm out}=-3~\si{\meter\cubed\per\second},
+\]
+the net inflow is
+\[
+Q_{\rm net}=2~\si{\meter\cubed\per\second}.
+\]
+Therefore
+\[
+\dot H_s=\frac{2}{100}=0.02~\si{\meter\per\second},
+\]
+and after ten seconds,
+\[
+\boxed{H_s(10)=50.2~\si{\meter}}.
+\]
+This is the standalone analytical test implemented in the package.
+
+The next validation should couple a rigid pipe and surge tank. Water inertia and storage then form an oscillatory hydraulic subsystem.
+
+\section{Expected Outputs}
+The minimum useful outputs are
+\[
+H_s(t),\qquad Q_{\rm in}(t),\qquad Q_{\rm out}(t),\qquad Q_{\rm net}(t).
+\]
+For the coupled system, additional outputs are pipe flow and head difference. Recommended plots are surge level, pipe flow, and the mass-balance residual
+\[
+r_m=A_s\dot H_s-Q_{\rm in}-Q_{\rm out}.
+\]
+
+\section{Engineering Interpretation}
+The surge tank adds hydraulic capacitance to the waterway:
+\[
+\boxed{\text{RigidPipe: inertia}\quad+\quad\text{SurgeTank: storage}}.
+\]
+This combination produces the first physically meaningful hydraulic oscillation in the OpenHPLjl sequence. The natural frequency and damping will depend on conduit inertia, tank area, friction, and downstream operating conditions.
+
+\section*{Conclusion}
+The basic surge-tank model is governed by
+\[
+\boxed{A_s\dot H_s=Q_{\rm in}+Q_{\rm out}}.
+\]
+It is intentionally simple and uses the same hydraulic connector as the previous components. The next modeling milestone is the coupled
+\[
+\boxed{\text{Reservoir}\rightarrow\text{RigidPipe}\rightarrow\text{SurgeTank}}
+\]
+system and validation of its hydraulic oscillatory mode.
+
+\begin{thebibliography}{9}
+\bibitem{OpenHPL}
+OpenHPL 3.0.1 documentation and resources.\newline
+\url{https://build.openmodelica.org/Documentation/OpenHPL.html}
+
+\bibitem{Sharefi}
+OpenHPL waterway and surge-shaft formulations.\newline
+\url{https://build.openmodelica.org/Documentation/OpenHPL%203.0.1/Resources/Documents/Sharefi2011.pdf}
+
+\bibitem{MTK}
+SciML, ModelingToolkit.jl, Acausal Component-Based Modeling.\newline
+\url{https://docs.sciml.ai/ModelingToolkit/stable/tutorials/acausal_components/}
+\end{thebibliography}
+\end{document}
