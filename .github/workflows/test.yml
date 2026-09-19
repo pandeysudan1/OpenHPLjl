@@ -7,6 +7,7 @@ on:
       - rigid-pipe-model
       - turbine-model
       - friction-models
+      - shaft-generator-grid-models
   pull_request:
     branches:
       - main
