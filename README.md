@@ -433,3 +433,60 @@ independent of the chosen friction correlation.
 - **Compiled Report 5 PDF:** `docs/report_05_friction_models.pdf`
 
 Next: compare the registered laws in one RigidPipe simulation, then add transitional and unsteady-friction models where justified.
+
+
+## Shaft, generator, and grid model families
+
+The electromechanical side now follows the same model-family structure as the waterways and turbines.
+
+```text
+src/
+├── Interfaces/
+│   ├── RotationalPort.jl
+│   └── ElectricalPowerPort.jl
+├── Mechanical/
+│   └── Shafts/
+│       ├── LumpedShaft.jl
+│       └── README.md
+└── Electrical/
+    ├── Generators/
+    │   ├── IdealGenerator.jl
+    │   └── README.md
+    └── Grids/
+        ├── InfiniteGrid.jl
+        └── README.md
+```
+
+### LumpedShaft
+
+```math
+J\dot\omega
+=
+\tau_{drive}
++
+\tau_{load}
+-
+D(\omega-\omega_0).
+```
+
+### IdealGenerator
+
+```math
+P_m = \tau\omega,
+\qquad
+P_e = \eta_g P_m.
+```
+
+### InfiniteGrid
+
+```math
+\omega = 2\pi f_0.
+```
+
+The next coupled milestone is a reduced electromechanical chain:
+
+```text
+Turbine -> Shaft -> Generator -> InfiniteGrid
+```
+
+followed by a complete hydraulic-to-grid SMIB model.
