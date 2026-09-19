@@ -379,3 +379,9 @@ P_m = \rho g\eta QH.
 This is the first controllable turbine approximation. The next higher-fidelity model will replace the analytical gate law and constant efficiency with characteristic maps / lookup tables.
 
 The waterway models are also now grouped as model families under `Waterways/RigidPipes/` and `Waterways/SurgeTanks/`, making it straightforward to add elastic pipes, throttled surge tanks, variable-area surge tanks, and other alternatives.
+
+
+- **Report 4 - Turbine Model Family:** `docs/report_04_turbine_models.tex`
+- **Compiled Report 4 PDF:** `docs/report_04_turbine_models.pdf`
+
+Report 4 introduces the turbine model hierarchy from ideal hydraulic-power conversion to guide-vane, lookup/Hill-chart, and type-specific Francis/Pelton/Kaplan models.
