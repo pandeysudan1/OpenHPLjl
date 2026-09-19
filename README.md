@@ -385,3 +385,51 @@ The waterway models are also now grouped as model families under `Waterways/Rigi
 - **Compiled Report 4 PDF:** `docs/report_04_turbine_models.pdf`
 
 Report 4 introduces the turbine model hierarchy from ideal hydraulic-power conversion to guide-vane, lookup/Hill-chart, and type-specific Francis/Pelton/Kaplan models.
+
+
+## Friction model family
+
+Hydraulic loss laws are separated from the RigidPipe momentum equation.
+
+```text
+src/FrictionModels/
+├── FrictionFunctions.jl
+├── FrictionRegistry.jl
+└── README.md
+```
+
+Registered models:
+
+- `:none`
+- `:quadratic` — (H_f = RQ|Q|)
+- `:darcy_constant` — Darcy-Weisbach with prescribed (f_D)
+- `:darcy_laminar` — (f_D = 64/Re)
+- `:darcy_haaland`
+- `:darcy_swamee_jain`
+
+The implicit Colebrook-White equation is provided as a residual for later use with `NonlinearSolve.jl`.
+
+A pipe selects its law at construction time:
+
+```julia
+@named pipe = RigidPipe(
+    friction = :darcy_haaland,
+    L = 1000.0,
+    diameter = 3.0,
+    nu = 1e-6,
+    epsilon = 1e-4,
+)
+```
+
+This keeps
+
+```math
+\frac{L}{gA}\dot Q = H_{in}-H_{out}-H_f(Q)
+```
+
+independent of the chosen friction correlation.
+
+- **Report 5 - Friction Model Registry:** `docs/report_05_friction_models.tex`
+- **Compiled Report 5 PDF:** `docs/report_05_friction_models.pdf`
+
+Next: compare the registered laws in one RigidPipe simulation, then add transitional and unsteady-friction models where justified.
