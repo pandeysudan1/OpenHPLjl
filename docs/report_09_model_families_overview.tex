@@ -1,0 +1,307 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=18mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,longtable,array,tabularx,siunitx,hyperref,listings,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,frame=single}
+\title{Report 9 - Core Component Model Families Overview\\
+\large Literature, Mathematics, OpenHPL Interpretation, and Julia Implementation}
+\author{Madhusudhan Pandey}
+\date{19 September 2026}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+OpenHPLjl v0.1.0-alpha.1 established a core component baseline. This report surveys the model families that should exist inside each current component folder before the next implementation milestone. For each family it summarizes the engineering concept, mathematical hierarchy, OpenHPL/OpenIPSL analogue, Julia/ModelingToolkit implementation route, and recommended next fidelity level.
+\end{abstract}
+
+\section{Updated Engineering Context}
+The current chain is
+\[
+\boxed{\text{Reservoir}\rightarrow\text{RigidPipe}\rightarrow\text{SurgeTank}
+\rightarrow\text{Turbine}\rightarrow\text{Shaft}\rightarrow\text{Generator}\rightarrow\text{Grid}}.
+\]
+OpenHPL 3.0.1 similarly separates waterways, electro-mechanical models, interfaces and functions. Its User Guide states that waterway components are based on mass and momentum balances, includes elastic/compressible waterway models, mechanistic and lookup-table turbines, and supports coupling to OpenIPSL for electrical-system models \cite{OpenHPLGuide}.
+
+The next milestone is therefore a model-family expansion rather than simply adding more isolated files.
+
+\section{Generalized Model-Hierarchy Concept}
+For every folder, the preferred fidelity ladder is
+\[
+\boxed{\text{boundary/algebraic}\rightarrow\text{lumped dynamic}
+\rightarrow\text{nonlinear physics-based}\rightarrow\text{distributed/high-order}}.
+\]
+The connector interface should remain stable while the internal equations change.
+
+\section{Literature Model Families Overview}
+\small
+\begin{longtable}{p{2.2cm}p{3.0cm}p{4.8cm}p{5.1cm}}
+\toprule
+\textbf{Folder} & \textbf{Concept} & \textbf{Model families} & \textbf{Mathematical family} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Folder} & \textbf{Concept} & \textbf{Model families} & \textbf{Mathematical family} \\
+\midrule
+\endhead
+
+Interfaces &
+Domain coupling and conservation &
+Hydraulic effort/flow; rotational speed/torque; reduced electrical frequency/power; later voltage/current phasor ports &
+Across variables are equated; flow variables sum to zero. ModelingToolkit uses \texttt{connect = Flow} for conserved connector variables \cite{MTK}. \\[1ex]
+
+Reservoirs &
+Hydraulic storage and boundary head &
+Infinite reservoir; constant-area reservoir; nonlinear area-volume reservoir; reservoir-channel/open-channel; hydrology-driven inflow &
+$\dot V=Q_{in}-Q_{out}$ and $A(H)\dot H=Q_{net}$. OpenHPL includes Reservoir and ReservoirChannel models \cite{OpenHPLWaterway}. \\[1ex]
+
+FrictionModels &
+Hydraulic dissipation &
+No loss; identified $RQ|Q|$; constant Darcy factor; laminar; Haaland; Swamee-Jain; Colebrook; transition; unsteady friction &
+$H_f=f_D(L/D)Q|Q|/(2gA^2)$ and $Re=4|Q|/(\pi D\nu)$. OpenHPL distinguishes laminar, transition and turbulent Darcy-factor regimes \cite{OpenHPLDarcy}. \\[1ex]
+
+RigidPipes &
+Water inertia and transient head &
+Quasi-steady conduit; rigid water-column ODE; elastic water-hammer PDE; method of characteristics; finite-volume/KP model &
+Rigid: $\frac{L}{gA}\dot Q=H_u-H_d-H_f$. Elastic: coupled continuity and momentum PDEs in $H(x,t),Q(x,t)$ \cite{WaterHammerReview}. \\[1ex]
+
+SurgeTanks &
+Local storage and hydraulic oscillation &
+Simple; throttled; sharp-orifice; air-cushion; variable-area; differential/combined &
+$A_s(H)\dot H_s=Q_{net}$ plus throttle/orifice loss. Air-cushion variants add a gas pressure-volume relation. OpenHPL provides four types \cite{OpenHPLSurge}. \\[1ex]
+
+Turbines &
+Hydraulic-to-mechanical conversion &
+Ideal; simple gate/valve; constant-efficiency; efficiency lookup; Hill-chart lookup; mechanistic Francis; Pelton; Kaplan; servo-coupled &
+$P_m=\rho g\eta QH$, reduced $Q=K_qy\sqrt{H}$, then $Q=f(H,\omega,y)$ and $\eta=f(H,Q,\omega,y)$. OpenHPL has simple, Francis and Pelton models \cite{OpenHPLTurbines,OpenHPLFrancis}. \\[1ex]
+
+Shafts &
+Mechanical inertia and torsion &
+Rigid coupling; single inertia; two-mass torsional; multi-mass flexible shaft; friction/backlash variants &
+$J\dot\omega=\sum\tau-D\Delta\omega$. Two-mass models add torsional stiffness and damping. Modelica Rotational provides inertia, spring and spring-damper components \cite{MSLRotational}. \\[1ex]
+
+Generators &
+Electromechanical conversion &
+Ideal converter; classical/swing; third/fourth-order transient-EMF; sixth-order dq; salient/round rotor; saturation and excitation attachments &
+$P_m=\tau\omega$; swing $M\dot\omega=P_m-P_e-D\Delta\omega$, $\dot\delta=\omega-\omega_s$. Higher orders add transient/subtransient EMF states. OpenIPSL includes GENCLS, GENROU, GENSAL and related families \cite{OpenIPSLMachines}. \\[1ex]
+
+Grids &
+Electrical boundary and network dynamics &
+Infinite bus; aggregate finite-inertia grid; SMIB network; multi-machine phasor network; later EMT if required &
+Infinite bus: $\omega=\omega_0$. Aggregate grid: swing/load-damping equation. SMIB: power-angle relation. Multi-machine: nodal DAEs. OpenIPSL GENCLS can represent a classical machine or infinite bus and has SMIB validation systems \cite{GENCLS,OpenIPSLTests}. \\
+
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Mathematical Families}
+The current folders reduce to five mathematical families.
+
+\subsection{Storage}
+Reservoirs and surge tanks use
+\[
+\boxed{\dot V=\sum Q},\qquad
+\boxed{A(H)\dot H=\sum Q}.
+\]
+
+\subsection{Momentum}
+Rigid waterways use
+\[
+\boxed{\frac{L}{gA}\dot Q=H_u-H_d-H_f(Q)}.
+\]
+Elastic waterways introduce
+\[
+\frac{\partial H}{\partial t}+\frac{a^2}{gA}\frac{\partial Q}{\partial x}=0,
+\]
+\[
+\frac{\partial H}{\partial x}+\frac{1}{gA}\frac{\partial Q}{\partial t}
++f\frac{Q|Q|}{2gDA^2}=0.
+\]
+Recent hydropower reviews distinguish rigid and elastic water-column models and describe MOC, FDM, FVM and FEM solution approaches \cite{WaterHammerReview}.
+
+\subsection{Constitutive and lookup models}
+Friction and turbine maps are mainly algebraic:
+\[
+H_f=\phi(Q,p),\qquad Q=f_Q(H,\omega,y),\qquad \eta=f_\eta(H,Q,\omega,y).
+\]
+Hill charts are a natural representation of turbine efficiency and operating regions \cite{HillCharts}.
+
+\subsection{Rotational dynamics}
+For one inertia,
+\[
+\boxed{J\dot\omega=\tau_m-\tau_e-D\Delta\omega}.
+\]
+For two inertias,
+\[
+J_1\dot\omega_1=\tau_t-K_t(\theta_1-\theta_2)-D_t(\omega_1-\omega_2),
+\]
+\[
+J_2\dot\omega_2=K_t(\theta_1-\theta_2)+D_t(\omega_1-\omega_2)-\tau_e.
+\]
+
+\subsection{Electromechanical/network DAEs}
+A classical generator uses
+\[
+\dot\delta=\omega-\omega_s,
+\]
+\[
+M\dot\omega=P_m-P_e-D(\omega-\omega_s),
+\]
+while the network supplies algebraic electrical-power equations. OpenIPSL documents GENCLS as a classical generator that can also represent an infinite bus depending on inertia parameterization \cite{GENCLS}.
+
+\section{OpenHPL and Modelica Interpretation}
+OpenHPL already provides a useful fidelity map:
+\begin{itemize}
+\item Waterways: reservoir, simple pipe, elastic penstock, KP-scheme penstock, open channel, fittings, gates and surge tanks \cite{OpenHPLWaterway}.
+\item Surge tanks: simple, air-cushion, throttle-valve and sharp-orifice \cite{OpenHPLSurge}.
+\item Turbines: simple turbine with constant or lookup efficiency plus mechanistic Francis and Pelton models \cite{OpenHPLSimpleTurbine,OpenHPLFrancis}.
+\item Electrical integration: OpenHPL is designed to interoperate with OpenIPSL \cite{OpenHPLGuide}.
+\item Shafts: Modelica Rotational supplies inertias, springs, dampers and spring-dampers suitable for rigid and flexible drive-train models \cite{MSLRotational}.
+\end{itemize}
+
+\section{Julia / ModelingToolkit Implementation Pattern}
+Every model family should follow the same development pattern:
+\begin{lstlisting}
+literature model
+    -> governing equations
+    -> parameter table
+    -> stable connector interface
+    -> ModelingToolkit component
+    -> analytical unit test
+    -> reference experiment
+    -> higher-fidelity sibling model
+\end{lstlisting}
+
+Recommended source expansion:
+\begin{lstlisting}
+Reservoirs/
+  NonlinearReservoir.jl
+  ReservoirChannel.jl
+
+Waterways/RigidPipes/
+  ElasticPenstock.jl
+  MOCWaterway.jl
+
+Waterways/SurgeTanks/
+  ThrottledSurgeTank.jl
+  AirCushionSurgeTank.jl
+  OrificeSurgeTank.jl
+
+Turbines/
+  TurbineLookup.jl
+  FrancisTurbine.jl
+  PeltonTurbine.jl
+  KaplanTurbine.jl
+
+Mechanical/Shafts/
+  TwoMassShaft.jl
+
+Electrical/Generators/
+  ClassicalGenerator.jl
+  FourthOrderGenerator.jl
+  SixthOrderGenerator.jl
+
+Electrical/Grids/
+  AggregateGrid.jl
+  SMIBGrid.jl
+  MultiMachineGrid.jl
+\end{lstlisting}
+
+\section{Implementation Priority Table}
+\small
+\begin{longtable}{p{2.5cm}p{4.2cm}p{4.3cm}p{4.0cm}}
+\toprule
+\textbf{Family} & \textbf{Baseline} & \textbf{Implement next} & \textbf{Reason} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Family} & \textbf{Baseline} & \textbf{Implement next} & \textbf{Reason} \\
+\midrule
+\endhead
+
+Interfaces & Three current ports & Add voltage/current phasor port only when needed & Avoid premature electrical detail. \\
+Reservoirs & Infinite + constant-area & Nonlinear $A(H)$ reservoir & Useful and low complexity. \\
+Friction & Current registry & Transition blend + calibration support & Important for measurement validation. \\
+RigidPipes & Rigid column & Elastic penstock / MOC or FVM prototype & Required for water hammer. \\
+SurgeTanks & Simple & Throttled + air-cushion & Important for oscillation damping and design. \\
+Turbines & Ideal + gate & Lookup/Hill chart, then Francis & Highest value for real-plant validation and FCR. \\
+Shafts & Lumped inertia & Two-mass shaft & Natural torsional extension. \\
+Generators & Ideal converter & Classical generator, then fourth-order & Required for rotor-angle/frequency dynamics. \\
+Grids & Infinite grid & SMIB grid + aggregate finite-inertia grid & Required for frequency/stability studies. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Validation Strategy}
+Each new model should pass:
+\begin{enumerate}
+\item equation-level analytical or conservation test;
+\item component step/ramp experiment;
+\item limiting-case comparison with a simpler sibling model;
+\item connected-system structural and initialization test.
+\end{enumerate}
+
+Examples include:
+\begin{itemize}
+\item elastic penstock approaching rigid-pipe behaviour for slow transients;
+\item throttled surge tank approaching simple surge tank as throttle loss tends to zero;
+\item lookup turbine approaching constant-efficiency behaviour near one operating point;
+\item two-mass shaft approaching lumped shaft for large torsional stiffness;
+\item classical generator approaching stiff-grid behaviour as inertia becomes very large, consistent with GENCLS \cite{GENCLS}.
+\end{itemize}
+
+\section{Expected Outputs}
+The expanded library should expose:
+\begin{itemize}
+\item Hydraulic: $H,Q,H_f$, pressure, surge level and wave states.
+\item Turbine: $Q,H,y,\eta,P_m,T_m$ and map coordinates.
+\item Mechanical: $\omega,\theta$, shaft torque and torsional deflection.
+\item Generator: $\delta,\omega,P_m,P_e$, transient EMFs and currents where applicable.
+\item Grid: frequency, angle, active/reactive power and bus voltage where applicable.
+\end{itemize}
+
+\section{Engineering Interpretation and Next Milestone}
+The roadmap becomes:
+\[
+\boxed{\text{Layer 1: Core components - completed in v0.1.0-alpha.1}}
+\]
+\[
+\boxed{\text{Layer 2: Model-family expansion}}
+\]
+\[
+\boxed{\text{Layer 3: Plant validation, governor, droop, AGC and FCR}}
+\]
+
+Recommended next implementation sequence:
+\[
+\boxed{
+\text{TurbineLookup}\rightarrow
+\text{ClassicalGenerator}\rightarrow
+\text{SMIBGrid}\rightarrow
+\text{TwoMassShaft}\rightarrow
+\text{ThrottledSurgeTank}\rightarrow
+\text{ElasticPenstock}
+}
+\]
+
+This sequence produces a useful connected plant early while preparing the hydraulic side for higher-frequency transient studies.
+
+\section*{Conclusion}
+The package now has a literature-guided model-family roadmap. The main architectural rule is to preserve connectors while increasing internal model fidelity. This lets OpenHPLjl support both reduced control studies and higher-fidelity hydropower transient studies without duplicating system architecture.
+
+\begin{thebibliography}{99}
+\bibitem{OpenHPLGuide} OpenHPL 3.0.1 User Guide. \url{https://build.openmodelica.org/Documentation/OpenHPL.UsersGuide.html}
+\bibitem{OpenHPLWaterway} OpenHPL Waterway package. \url{https://build.openmodelica.org/Documentation/OpenHPL.Waterway.html}
+\bibitem{OpenHPLDarcy} OpenHPL Darcy friction factor. \url{https://build.openmodelica.org/Documentation/OpenHPL.Functions.DarcyFriction.fDarcy.html}
+\bibitem{OpenHPLSurge} OpenHPL SurgeTank. \url{https://build.openmodelica.org/Documentation/OpenHPL.Waterway.SurgeTank.html}
+\bibitem{OpenHPLTurbines} OpenHPL turbine package. \url{https://build.openmodelica.org/Documentation/OpenHPL.ElectroMech.Turbines.html}
+\bibitem{OpenHPLSimpleTurbine} OpenHPL simple turbine. \url{https://build.openmodelica.org/Documentation/OpenHPL.ElectroMech.Turbines.Turbine.html}
+\bibitem{OpenHPLFrancis} OpenHPL Francis turbine. \url{https://build.openmodelica.org/Documentation/OpenHPL.ElectroMech.Turbines.Francis.html}
+\bibitem{WaterHammerReview} Issues Related to Water Hammer in Francis-Turbine Hydropower Schemes: A Review, Energies, 2025. \url{https://www.mdpi.com/1996-1073/18/24/6404}
+\bibitem{HillCharts} Hydro turbine prototype testing and generation of performance curves, Renewable Energy, 2014. \url{https://doi.org/10.1016/j.renene.2014.05.043}
+\bibitem{MTK} ModelingToolkit.jl Acausal Component-Based Modeling. \url{https://docs.sciml.ai/ModelingToolkit/stable/tutorials/acausal_components/}
+\bibitem{MSLRotational} Modelica Rotational mechanics overview. \url{https://build.openmodelica.org/Documentation/Modelica.Mechanics.Rotational.UsersGuide.Overview}
+\bibitem{OpenIPSLMachines} OpenIPSL PSSE machine models. \url{https://build.openmodelica.org/Documentation/OpenIPSL.Electrical.Machines.PSSE.html}
+\bibitem{GENCLS} OpenIPSL GENCLS. \url{https://build.openmodelica.org/Documentation/OpenIPSL.Electrical.Machines.PSSE.GENCLS.html}
+\bibitem{OpenIPSLTests} OpenIPSL PSSE machine SMIB tests. \url{https://build.openmodelica.org/Documentation/OpenIPSL.Tests.Machines.PSSE.html}
+\end{thebibliography}
+\end{document}

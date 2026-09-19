@@ -536,3 +536,41 @@ See:
 
 The next milestone is **Connected Plant Baseline**: subsystem assemblies,
 initialization, and the first complete hydropower SMIB.
+
+
+## Next milestone - model-family literature overview
+
+The `literature-model-overview` branch starts the second milestone by defining
+the model hierarchy for every current physical-domain folder before adding more
+source code.
+
+**Report 9 - Core Component Model Families Overview**
+
+- `docs/report_09_study_plan.md`
+- `docs/report_09_model_families_overview.tex`
+- `docs/report_09_model_families_overview.pdf`
+
+The report compares literature model families, governing mathematics,
+OpenHPL/OpenIPSL analogues, Julia/ModelingToolkit implementation routes, and the
+recommended next fidelity level for:
+
+- Interfaces
+- Reservoirs
+- FrictionModels
+- RigidPipes
+- SurgeTanks
+- Turbines
+- Shafts
+- Generators
+- Grids
+
+The proposed next implementation sequence is:
+
+```text
+TurbineLookup
+  -> ClassicalGenerator
+  -> SMIBGrid
+  -> TwoMassShaft
+  -> ThrottledSurgeTank
+  -> ElasticPenstock
+```
