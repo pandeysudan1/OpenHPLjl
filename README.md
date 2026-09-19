@@ -1,150 +1,227 @@
 # OpenHPLjl
 
-`OpenHPLjl` is an experimental Julia/ModelingToolkit translation of the Modelica hydropower library [OpenHPL](https://github.com/OpenSimHub/OpenHPL).
+**Equation-based hydropower modeling and analysis in Julia with ModelingToolkit.jl and the SciML ecosystem.**
 
-The goal is to preserve OpenHPL's physical equations and acausal component philosophy while making the models composable with the SciML/ModelingToolkit ecosystem.
+## Project motivation
 
-## Current scope
+Hydropower dynamics couple several physical domains: reservoir storage, waterway inertia, surge oscillations, turbine characteristics, rotating-machine dynamics, control systems, and the electrical grid. These interactions are naturally described by differential-algebraic equations rather than by a collection of one-way signal blocks.
 
-Implemented:
+OpenHPLjl is a fresh Julia project for building these systems from physical conservation laws and reusable acausal components. The immediate goal is not to reproduce every OpenHPL component line-for-line. The goal is to establish a transparent modeling framework in which the mathematics, assumptions, initialization, numerical solution, and engineering interpretation remain visible.
 
-- hydraulic `Contact` connector
-- `Reservoir`
-- `HydroPipe` using the OpenHPL momentum equation and Darcy friction
-- simple `SurgeTank` (`STSimple` physics)
-- `PressureBoundary`
-- simple hydraulic `Turbine`
-- rotor-energy-balance `SimpleGenerator`
-- first-order `DroopGovernor`
-- fixed-opening and controlled-opening turbine modes
-- fixed-load and externally driven load modes
-- CI smoke tests and runnable examples
+The project uses **ModelingToolkit.jl** for symbolic and equation-based model construction and the broader **SciML** ecosystem for compilation, numerical integration, parameter analysis, sensitivity, calibration, optimization, and control-oriented analysis.
 
-Still to translate or validate:
-
-- air-cushion, sharp-orifice and throttle surge tanks
-- creek intake
-- Francis, Pelton and empirical turbine models
-- detailed generator / grid models
-- transient droop, PID and other OpenHPL controllers
-- Modelica-vs-Julia trajectory validation
-- elastic penstock / distributed water-hammer models
-
-## Architecture
-
-```text
-OpenHPL Modelica                     OpenHPLjl / ModelingToolkit
-----------------                     --------------------------
-Interfaces.Contact       -------->   Contact()
-Waterway.Reservoir       -------->   Reservoir()
-Waterway.Pipe            -------->   HydroPipe()
-Waterway.SurgeTank       -------->   SurgeTank()
-ElectroMech.Turbines     -------->   Turbine()
-Generators.SimpleGen     -------->   SimpleGenerator()
-Controllers              -------->   DroopGovernor()
-Examples                 -------->   executable plant studies
-```
-
-`HydroPipe` is used instead of the Julia name `Pipe` because `Base.Pipe` is already a Julia process/IO type.
-
-## Modeling philosophy
-
-The package is equation based:
-
-```text
-component equations
-      -> physical connectors
-      -> assembled DAE
-      -> mtkcompile
-      -> initialize
-      -> solve
-```
-
-This keeps the hydraulic and electromechanical subsystems in one nonlinear model and leaves operating-point calculation, initialization, linearization and control studies inside the SciML workflow.
-
-## First nonlinear hydro unit
+## Generalized hydropower concept
 
 ```text
 Reservoir
-   -> Headrace
-   -> SurgeTank
-   -> Penstock
-   -> Turbine
-   -> Tailrace
-
-Turbine mechanical power
-   -> SimpleGenerator
-   -> frequency
-   -> DroopGovernor
-   -> turbine guide-vane opening
+   |
+   v
+Intake / waterway
+   |
+   v
+Surge tank
+   |
+   v
+Penstock
+   |
+   v
+Turbine --> Shaft --> Generator --> Grid
+   ^                                  |
+   |                                  v
+   +----------- Governor <--------- Frequency
 ```
 
-The first FCR-style example is:
+The modeling principle is:
 
 ```text
-examples/fcr_load_step.jl
+physical law
+    -> component equations
+    -> acausal connectors
+    -> assembled DAE/ODE system
+    -> consistent initialization
+    -> numerical simulation
+    -> analysis and validation
 ```
 
-It applies a 10% electrical load increase at `t = 5 s` and closes the primary-frequency loop through the governor and turbine opening.
+## Modeling scope
 
-The governing reduced equations are
+Each component will be documented in the same order:
+
+1. Updated engineering context
+2. Generalized concept model
+3. Alternative models available in the literature
+4. Mathematics used in the OpenHPL/OpenHPLjl concept
+5. OpenHPL-specific modeling interpretation
+6. Julia ModelingToolkit / SciML implementation
+7. Component connections and model assembly
+8. Numerical experiment and validation
+9. Expected outputs
+10. Engineering interpretation
+
+## Mathematical viewpoint
+
+A general component may contain differential states `x`, algebraic variables `z`, inputs or external quantities `u`, and parameters `p`:
+
+```math
+\dot{x} = f(x,z,u,p)
+```
+
+```math
+0 = g(x,z,u,p)
+```
+
+Hydraulic components will begin from mass and momentum conservation. Mechanical components will use torque and rotational dynamics. Electrical components will progress from simple power/frequency representations toward richer synchronous-machine and grid models where necessary.
+
+The assembled plant therefore becomes a nonlinear DAE system that can be compiled and analyzed using ModelingToolkit and SciML tools.
+
+## Why ModelingToolkit.jl?
+
+ModelingToolkit supports symbolic equation systems, hierarchical components, acausal connections, structural transformations, index reduction, initialization, generated numerical functions, and integration with SciML solvers. Current ModelingToolkit documentation uses `mtkcompile` to transform a symbolic `System` into a numerically solvable form.
+
+The project will prefer current public ModelingToolkit APIs and will avoid depending on internal APIs unless there is a clear reason.
+
+## Analysis roadmap
+
+OpenHPLjl is intended to support more than time-domain simulation. Planned analyses include:
+
+- steady-state and operating-point initialization
+- nonlinear transient simulation
+- component step and ramp validation
+- hydraulic oscillation analysis
+- turbine characteristic-map studies
+- small-signal linearization
+- eigenvalue and damping analysis
+- frequency-response analysis
+- Bode and Nyquist analysis
+- governor and droop studies
+- AGC and tie-line control
+- FCR response and prequalification studies
+- parameter estimation and model validation
+- sensitivity analysis
+- optimization and control design
+
+## Package structure
 
 ```text
-Pipe:
-L d(mdot)/dt = (p_i + rho g H - p_o) A - F_f
-
-Turbine:
-dp (C_v max(epsilon,u^alpha))^2 = Q |Q|
-P_t = eta_h dp Q
-
-Generator:
-J omega domega/dt = P_m - P_load - P_fric
-
-Governor:
-u_cmd = sat(u0 + (f_ref - f)/(R f_ref))
-T_g du/dt = u_cmd - u
+OpenHPLjl/
+├── src/
+│   └── OpenHPLjl.jl
+├── test/
+│   └── runtests.jl
+├── docs/
+├── examples/
+├── Project.toml
+└── README.md
 ```
 
-## Examples
+The folders will be expanded only when the corresponding physical model is introduced.
+
+## First modeling sequence
+
+The initial component sequence is deliberately simple:
 
 ```text
-examples/reservoir_pipe.jl
-examples/reservoir_surge_penstock.jl
-examples/reservoir_surge_turbine.jl
-examples/hydro_unit_frequency.jl
-examples/fcr_load_step.jl
+HydraulicPort
+    -> Reservoir
+    -> RigidPipe
+    -> SurgeTank
+    -> Penstock
+    -> Turbine
+    -> Shaft
+    -> Generator
+    -> Grid
+    -> Governor
+    -> complete hydropower plant
 ```
 
-## Development
+### Step 1 — Hydraulic connector
 
-```julia
-using Pkg
-Pkg.instantiate()
+Define the effort-like hydraulic variable and the conserved flow variable with a consistent sign convention and units.
 
-using OpenHPLjl
-using ModelingToolkit
+### Step 2 — Reservoir
 
-@named reservoir = Reservoir()
-@named penstock = HydroPipe(H = 100.0, L = 700.0, D_i = 2.0)
+Start from mass conservation:
+
+```math
+\frac{dV}{dt}=Q_{in}-Q_{out}.
 ```
 
-See `docs/TRANSLATION_PLAN.md` for the component-by-component migration and validation plan.
+Implement both constant-head and finite-storage variants and validate the storage balance.
 
-## Validation
+### Step 3 — Rigid waterway
 
-A translated component is not considered validated only because it compiles. The intended validation sequence is:
+Introduce momentum conservation and water inertia.
 
-1. identify the exact upstream OpenHPL source/version
-2. match parameters and operating point
-3. run Modelica and Julia cases
-4. compare steady state and transient trajectories
-5. record numerical error and tolerances
-6. add the case to CI
+### Step 4 — Surge tank
 
-## Railway
+Add storage-waterway interaction and verify the natural hydraulic oscillation.
 
-A Railway project named `OpenHPLjl` has been created for cloud execution. Deployment of a Julia service is currently separate from the library code and depends on available Railway account resources. GitHub Actions is used as the immediate executable validation path.
+### Step 5 — Turbine
 
-## License and provenance
+Connect hydraulic and rotational domains using an analytical model first, then a characteristic-map/lookup-table model.
 
-OpenHPL is distributed under the Mozilla Public License 2.0. Files in this repository that translate or adapt OpenHPL equations are marked `SPDX-License-Identifier: MPL-2.0` and retain source provenance. This project is not an official OpenHPL distribution.
+### Step 6 — Shaft, generator, and grid
+
+Build the mechanical/electrical chain and establish an SMIB test case.
+
+### Step 7 — Control
+
+Add isochronous control, droop, AGC, and later interconnected-area control.
+
+### Step 8 — Analysis
+
+Use the assembled model for operating-point analysis, linearization, eigenvalues, Bode/Nyquist plots, time-domain disturbances, and FCR studies.
+
+## Expected outputs
+
+As the package grows, examples should produce physically interpretable quantities rather than only solver success messages.
+
+Typical hydraulic outputs:
+
+- reservoir head and volume
+- discharge
+- penstock head/pressure
+- surge-tank level
+- hydraulic power
+
+Typical turbine/mechanical outputs:
+
+- guide-vane position
+- turbine flow
+- efficiency
+- mechanical power and torque
+- shaft speed
+
+Typical electrical/control outputs:
+
+- electrical power
+- rotor angle
+- frequency deviation
+- governor command
+- FCR activation power and energy
+
+Every major component should have at least one numerical validation experiment and a clearly stated expected result.
+
+## Next steps
+
+- [ ] Define notation, SI units, sign conventions, and modeling rules.
+- [ ] Implement `HydraulicPort`.
+- [ ] Write **Report 1: Reservoir** in `docs/`.
+- [ ] Implement constant-head reservoir.
+- [ ] Implement finite-storage reservoir.
+- [ ] Add analytical reservoir mass-balance tests.
+- [ ] Implement `RigidPipe` from momentum balance.
+- [ ] Add step/ramp experiments for the first waterway.
+- [ ] Introduce `SurgeTank` and validate its oscillation.
+- [ ] Add turbine model and characteristic lookup-table interface.
+- [ ] Assemble the first reservoir-to-turbine hydraulic system.
+- [ ] Add shaft, generator, infinite bus, and governor models.
+- [ ] Build a complete SMIB example.
+- [ ] Add analysis examples using SciML and control-system tooling.
+- [ ] Extend the validated model toward Trollheim, AGC, and FCR studies.
+
+## Status
+
+This commit is the **fresh project kickoff**. Previous experimental package contents were intentionally removed from the active tree. They remain available through Git history.
+
+The first technical milestone is a tested hydraulic connector plus reservoir model.

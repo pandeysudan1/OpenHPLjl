@@ -1,27 +1,14 @@
-# SPDX-License-Identifier: MPL-2.0
 module OpenHPLjl
 
 using ModelingToolkit
 
-@independent_variables t
-const D = Differential(t)
+export project_status
 
-include("Interfaces.jl")
-include("Functions.jl")
-include("Waterway.jl")
-include("Mechanics.jl")
-include("Electrical.jl")
-include("Turbomachinery.jl")
-include("ElectroMech.jl")
+"""
+    project_status()
 
-export t, D
-export HydraulicContact, RotationalContact, ElectricalContact
-export connect_hydraulic, connect_rotational, connect_electrical
-export darcy_factor, darcy_friction
-export Reservoir, ConstantLevelReservoir, HydroPipe, SurgeTank, PressureBoundary
-export PowerToTorque, RigidShaft
-export ClassicalSynchronousGenerator, LosslessLine, InfiniteBus, SingleAreaGrid
-export HydroTurbineShaft
-export Turbine, SimpleGenerator, SMIBGenerator, DroopGovernor, OpenHPLGovernor
+Return the current project phase.
+"""
+project_status() = "OpenHPLjl kickoff: equation-based hydropower modeling with ModelingToolkit.jl"
 
-end # module
+end

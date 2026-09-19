@@ -1,23 +1,13 @@
 name = "OpenHPLjl"
-uuid = "63d83914-40af-4f5b-bce3-9fb1d85d646d"
+uuid = "18ddd5a2-5109-408b-90da-3f03c17517f1"
 authors = ["Madhusudhan Pandey"]
 version = "0.1.0"
 
 [deps]
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
-NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
-SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c4-0bf5283fa5ed"
 
 [compat]
-julia = "1.12"
-ModelingToolkit = "11.37"
-NonlinearSolve = "4.29"
-OrdinaryDiffEq = "7"
-SciMLBase = "3"
-
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
+julia = "1.11"
+ModelingToolkit = "11"
+OrdinaryDiffEq = "6"
