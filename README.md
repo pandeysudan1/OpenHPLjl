@@ -490,3 +490,21 @@ Turbine -> Shaft -> Generator -> InfiniteGrid
 ```
 
 followed by a complete hydraulic-to-grid SMIB model.
+
+
+## Electromechanical technical reports
+
+- **Report 6 - Shaft Model Family:** `docs/report_06_shaft_models.tex`
+- **Compiled Report 6 PDF:** `docs/report_06_shaft_models.pdf`
+- **Report 7 - Generator Model Family:** `docs/report_07_generator_models.tex`
+- **Compiled Report 7 PDF:** `docs/report_07_generator_models.pdf`
+- **Report 8 - Grid Model Family:** `docs/report_08_grid_models.tex`
+- **Compiled Report 8 PDF:** `docs/report_08_grid_models.pdf`
+
+The progression is now:
+
+```text
+Hydraulics -> Turbine -> Shaft -> Generator -> Grid
+```
+
+Next: connect these components into one reduced electromechanical chain, then assemble the first complete hydropower SMIB example.
