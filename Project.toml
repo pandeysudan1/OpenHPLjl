@@ -1,7 +1,7 @@
 name = "OpenHPLjl"
 uuid = "18ddd5a2-5109-408b-90da-3f03c17517f1"
 authors = ["Madhusudhan Pandey"]
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 
 [deps]
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"

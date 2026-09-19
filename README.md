@@ -221,9 +221,9 @@ fresh package kickoff
     -> README/report integration
 ```
 
-### Current branch - `reservoir-model`
+### Current branch - `rigid-pipe-model`
 
-This branch turns the reservoir report into the first complete component milestone. It also builds and stores the compiled PDF version of Report 1.
+This branch adds the first waterway momentum model on top of the reservoir milestone. It includes Report 2, the `RigidPipe` source model, and an analytical momentum-balance test.
 
 Current branch flow:
 
@@ -280,9 +280,10 @@ After the reservoir component is validated, the next modeling branch should intr
 - [x] Implement constant-head reservoir.
 - [x] Implement finite-storage reservoir.
 - [x] Add analytical reservoir mass-balance tests.
-- [ ] Implement `RigidPipe` from momentum balance.
-- [ ] Add step/ramp experiments for the first waterway.
-- [ ] Introduce `SurgeTank` and validate its oscillation.
+- [x] Implement `RigidPipe` from momentum balance.
+- [x] Add analytical head-step test for the first waterway.
+- [x] Introduce basic `SurgeTank` storage model and analytical mass-balance test.
+- [ ] Validate the coupled RigidPipe-SurgeTank oscillation.
 - [ ] Add turbine model and characteristic lookup-table interface.
 - [ ] Assemble the first reservoir-to-turbine hydraulic system.
 - [ ] Add shaft, generator, infinite bus, and governor models.
@@ -317,4 +318,221 @@ pdflatex report_01_reservoir.tex
 pdflatex report_01_reservoir.tex
 ```
 
-The next report will cover the **RigidPipe / rigid waterway model**, beginning from momentum conservation and water inertia.
+- **Report 2 - Rigid Pipe Model:** `docs/report_02_rigid_pipe.tex`
+- **Compiled Report 2 PDF:** `docs/report_02_rigid_pipe.pdf`
+
+Report 2 is intentionally concise and follows the same 10-part structure as Report 1.
+
+The basic **SurgeTank** component is now included in `src/Waterways/SurgeTank.jl`.
+
+Its storage equation is
+
+```math
+A_s \dot H_s = Q_{in} + Q_{out},
+```
+
+using the package convention that port flow is positive into a component.
+
+The next validation step is a **coupled RigidPipe-SurgeTank system**, where water inertia and tank storage create the first hydraulic oscillatory mode.
+
+
+- **Report 3 - Surge Tank Model:** `docs/report_03_surge_tank.tex`
+- **Compiled Report 3 PDF:** `docs/report_03_surge_tank.pdf`
+
+Report 3 follows the same concise 10-part structure and documents the storage equation, MTK implementation, analytical mass-balance test, expected outputs, and the next coupled RigidPipe-SurgeTank oscillation study.
+
+
+## Turbine model family
+
+Turbines are organized by model fidelity rather than as one monolithic model.
+
+```text
+Turbines/
+├── IdealTurbine.jl
+├── SimpleGateTurbine.jl
+├── TurbineLookup.jl      # planned
+├── FrancisTurbine.jl     # planned
+├── PeltonTurbine.jl      # planned
+└── KaplanTurbine.jl      # planned
+```
+
+The first two models use the same hydraulic connector as the waterways.
+
+### IdealTurbine
+
+```math
+H = H_{in}-H_{out},
+\qquad
+P_m = \rho g\eta QH.
+```
+
+The surrounding network determines `Q`.
+
+### SimpleGateTurbine
+
+```math
+Q = K_q y\sqrt{H},
+\qquad
+P_m = \rho g\eta QH.
+```
+
+This is the first controllable turbine approximation. The next higher-fidelity model will replace the analytical gate law and constant efficiency with characteristic maps / lookup tables.
+
+The waterway models are also now grouped as model families under `Waterways/RigidPipes/` and `Waterways/SurgeTanks/`, making it straightforward to add elastic pipes, throttled surge tanks, variable-area surge tanks, and other alternatives.
+
+
+- **Report 4 - Turbine Model Family:** `docs/report_04_turbine_models.tex`
+- **Compiled Report 4 PDF:** `docs/report_04_turbine_models.pdf`
+
+Report 4 introduces the turbine model hierarchy from ideal hydraulic-power conversion to guide-vane, lookup/Hill-chart, and type-specific Francis/Pelton/Kaplan models.
+
+
+## Friction model family
+
+Hydraulic loss laws are separated from the RigidPipe momentum equation.
+
+```text
+src/FrictionModels/
+├── FrictionFunctions.jl
+├── FrictionRegistry.jl
+└── README.md
+```
+
+Registered models:
+
+- `:none`
+- `:quadratic` — (H_f = RQ|Q|)
+- `:darcy_constant` — Darcy-Weisbach with prescribed (f_D)
+- `:darcy_laminar` — (f_D = 64/Re)
+- `:darcy_haaland`
+- `:darcy_swamee_jain`
+
+The implicit Colebrook-White equation is provided as a residual for later use with `NonlinearSolve.jl`.
+
+A pipe selects its law at construction time:
+
+```julia
+@named pipe = RigidPipe(
+    friction = :darcy_haaland,
+    L = 1000.0,
+    diameter = 3.0,
+    nu = 1e-6,
+    epsilon = 1e-4,
+)
+```
+
+This keeps
+
+```math
+\frac{L}{gA}\dot Q = H_{in}-H_{out}-H_f(Q)
+```
+
+independent of the chosen friction correlation.
+
+- **Report 5 - Friction Model Registry:** `docs/report_05_friction_models.tex`
+- **Compiled Report 5 PDF:** `docs/report_05_friction_models.pdf`
+
+Next: compare the registered laws in one RigidPipe simulation, then add transitional and unsteady-friction models where justified.
+
+
+## Shaft, generator, and grid model families
+
+The electromechanical side now follows the same model-family structure as the waterways and turbines.
+
+```text
+src/
+├── Interfaces/
+│   ├── RotationalPort.jl
+│   └── ElectricalPowerPort.jl
+├── Mechanical/
+│   └── Shafts/
+│       ├── LumpedShaft.jl
+│       └── README.md
+└── Electrical/
+    ├── Generators/
+    │   ├── IdealGenerator.jl
+    │   └── README.md
+    └── Grids/
+        ├── InfiniteGrid.jl
+        └── README.md
+```
+
+### LumpedShaft
+
+```math
+J\dot\omega
+=
+\tau_{drive}
++
+\tau_{load}
+-
+D(\omega-\omega_0).
+```
+
+### IdealGenerator
+
+```math
+P_m = \tau\omega,
+\qquad
+P_e = \eta_g P_m.
+```
+
+### InfiniteGrid
+
+```math
+\omega = 2\pi f_0.
+```
+
+The next coupled milestone is a reduced electromechanical chain:
+
+```text
+Turbine -> Shaft -> Generator -> InfiniteGrid
+```
+
+followed by a complete hydraulic-to-grid SMIB model.
+
+
+## Electromechanical technical reports
+
+- **Report 6 - Shaft Model Family:** `docs/report_06_shaft_models.tex`
+- **Compiled Report 6 PDF:** `docs/report_06_shaft_models.pdf`
+- **Report 7 - Generator Model Family:** `docs/report_07_generator_models.tex`
+- **Compiled Report 7 PDF:** `docs/report_07_generator_models.pdf`
+- **Report 8 - Grid Model Family:** `docs/report_08_grid_models.tex`
+- **Compiled Report 8 PDF:** `docs/report_08_grid_models.pdf`
+
+The progression is now:
+
+```text
+Hydraulics -> Turbine -> Shaft -> Generator -> Grid
+```
+
+Next: connect these components into one reduced electromechanical chain, then assemble the first complete hydropower SMIB example.
+
+
+## Release checkpoint — v0.1.0-alpha.1
+
+**Core Components Baseline**
+
+The first pass of the core physical model families is complete:
+
+```text
+Reservoir
+  -> RigidPipe
+  -> SurgeTank
+  -> Turbine
+  -> Shaft
+  -> Generator
+  -> Grid
+```
+
+This checkpoint establishes reusable ModelingToolkit components, acausal
+interfaces, analytical tests, friction-model selection, and Reports 1–8.
+
+See:
+
+- `CHANGELOG.md`
+- `docs/checkpoint_v0.1.0-alpha.1.md`
+
+The next milestone is **Connected Plant Baseline**: subsystem assemblies,
+initialization, and the first complete hydropower SMIB.

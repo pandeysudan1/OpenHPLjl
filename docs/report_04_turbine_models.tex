@@ -1,0 +1,201 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,siunitx,hyperref,listings,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,pdftitle={Report 4 - Turbine Model Family for OpenHPL/OpenHPLjl},pdfauthor={Madhusudhan Pandey}}
+\lstdefinelanguage{Julia}{keywords={using,begin,end,function,return,module,export,include},sensitive=true,comment=[l]\#,morestring=[b]"}
+\lstset{language=Julia,basicstyle=\ttfamily\small,breaklines=true,frame=single,columns=fullflexible,showstringspaces=false}
+\title{Report 4 - Turbine Model Family for OpenHPL/OpenHPLjl}
+\author{Madhusudhan Pandey}
+\date{19 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report introduces the turbine model family in OpenHPLjl. The goal is to progress from transparent analytical hydraulic-to-mechanical conversion toward guide-vane, characteristic-map, and turbine-type-specific models while preserving one reusable hydraulic interface. The structure follows the same concise engineering sequence used for the reservoir, rigid-pipe, and surge-tank reports.
+\end{abstract}
+
+\section{Updated Context}
+The turbine is the energy-conversion component between the hydraulic waterway and the rotating shaft:
+\[
+\boxed{\text{Reservoir}\rightarrow\text{RigidPipe}\rightarrow\text{SurgeTank}\rightarrow\text{Turbine}\rightarrow\text{Shaft}\rightarrow\text{Generator}}.
+\]
+The waterway determines head and flow. The turbine converts hydraulic power into mechanical power. OpenHPL includes turbine models and supporting turbine documentation, including Francis-turbine formulations and characteristic relationships \cite{Sharefi,OpenHPLTurbine}.
+
+\section{Generalized Concept Model}
+The generalized turbine receives hydraulic head and flow and produces mechanical power:
+\[
+\boxed{H,\;Q,\;y,\;\omega \rightarrow \text{Turbine} \rightarrow P_m,\;T_m}.
+\]
+The hydraulic head drop is
+\[
+H=H_{\rm in}-H_{\rm out}.
+\]
+The basic hydraulic power is
+\[
+P_h=\rho gQH.
+\]
+Mechanical power is
+\[
+\boxed{P_m=\eta \rho gQH}.
+\]
+When shaft speed is available,
+\[
+T_m=\frac{P_m}{\omega}.
+\]
+
+\section{Other Models Available in the Literature}
+A useful hierarchy is
+\[
+\boxed{\text{ideal power converter}\rightarrow\text{constant-efficiency turbine}\rightarrow\text{gate-flow model}\rightarrow\text{lookup/Hill-chart model}\rightarrow\text{type-specific model}}.
+\]
+The simplest model computes power from network flow. A gate model adds guide-vane dependence. Higher-fidelity Francis, Pelton, and Kaplan models use turbine-specific nondimensional relationships and characteristic maps. OpenHPL documentation includes turbine characteristic relationships and Francis-turbine modeling resources \cite{Sharefi,OpenHPLTurbine}.
+
+\section{Mathematics Involved in the OpenHPL Concept/Model}
+For the first model family,
+\[
+H=H_{\rm in}-H_{\rm out},
+\qquad
+Q=Q_{\rm in},
+\qquad
+Q_{\rm out}=-Q.
+\]
+The ideal/constant-efficiency conversion is
+\[
+\boxed{P_m=\rho g\eta QH}.
+\]
+A first analytical guide-vane approximation is
+\[
+\boxed{Q=K_q y\sqrt{H}},
+\]
+for positive head. Combining the equations gives
+\[
+P_m=\rho g\eta K_q y H^{3/2}.
+\]
+In later models, $\eta$ and $Q$ become nonlinear functions of guide-vane opening, speed, and head:
+\[
+Q=f_Q(H,\omega,y),
+\qquad
+\eta=f_\eta(H,\omega,Q,y).
+\]
+
+\section{OpenHPL-Specific Modeling Interpretation}
+The OpenHPL turbine philosophy is compatible with a progression from simple algebraic conversion toward nonlinear characteristic-map models. The turbine should remain connected hydraulically through the same head/flow ports while the internal constitutive equations become more detailed. This allows a simple turbine to be replaced by a Francis, Pelton, Kaplan, or lookup-table model without redesigning the surrounding waterway.
+
+\section{Implementation in Julia ModelingToolkit / SciML}
+ModelingToolkit supports hierarchical components and acausal connectors. The current package therefore places turbine alternatives under one model-family folder.
+
+\begin{lstlisting}
+src/Turbines/
+|-- IdealTurbine.jl
+|-- SimpleGateTurbine.jl
+|-- TurbineLookup.jl      # planned
+|-- FrancisTurbine.jl     # planned
+|-- PeltonTurbine.jl      # planned
+|-- KaplanTurbine.jl      # planned
+\end{lstlisting}
+
+The first conversion model is
+
+\begin{lstlisting}
+@component function IdealTurbine(;
+    name, rho=1000.0, g=9.81, eta=1.0)
+
+    @named inlet = HydraulicPort()
+    @named outlet = HydraulicPort()
+
+    @variables Q(t) H(t) Pm(t)
+
+    eqs = [
+        Q ~ inlet.Q
+        outlet.Q ~ -Q
+        H ~ inlet.H - outlet.H
+        Pm ~ rho*g*eta*Q*H
+    ]
+
+    System(eqs, t, [Q,H,Pm], [rho,g,eta];
+        systems=[inlet,outlet], name=name)
+end
+\end{lstlisting}
+
+The first guide-vane model adds
+\[
+Q=K_q y\sqrt{H}.
+\]
+
+\section{Model Assembly and Connections}
+A turbine can be connected downstream of the hydraulic system:
+\begin{lstlisting}
+@named tank = SurgeTank()
+@named penstock = RigidPipe()
+@named turbine = SimpleGateTurbine(y = 0.5)
+
+connections = [
+    connect(tank.outlet, penstock.inlet)
+    connect(penstock.outlet, turbine.inlet)
+]
+\end{lstlisting}
+A tail-water boundary is connected to the turbine outlet. A future rotational connector will connect turbine torque to the shaft.
+
+\section{Numerical Experiment / Validation}
+For
+\[
+H=100~\si{\meter},\qquad y=0.5,\qquad K_q=1,
+\]
+the simple gate law gives
+\[
+Q=1\cdot0.5\sqrt{100}=5~\si{\meter\cubed\per\second}.
+\]
+With
+\[
+\rho=1000~\si{\kilogram\per\meter\cubed},\qquad
+g=9.81~\si{\meter\per\second\squared},\qquad
+\eta=0.90,
+\]
+the expected mechanical power is
+\[
+\boxed{P_m=4.4145~\si{\mega\watt}}.
+\]
+This provides a simple deterministic unit-test target before introducing characteristic maps.
+
+\section{Expected Outputs}
+The minimum turbine outputs are
+\[
+Q(t),\qquad H(t),\qquad P_m(t),
+\]
+and later
+\[
+\eta(t),\qquad T_m(t),\qquad \omega(t),\qquad y(t).
+\]
+Useful plots include mechanical power versus guide-vane opening, efficiency versus operating point, head-flow response, and turbine characteristic maps.
+
+\section{Engineering Interpretation}
+The turbine family separates model fidelity from system architecture. The surrounding hydropower plant sees the same hydraulic interface while the internal model can evolve from
+\[
+\boxed{\text{ideal}\rightarrow\text{gate-controlled}\rightarrow\text{lookup map}\rightarrow\text{Francis/Pelton/Kaplan}}.
+\]
+This is important for FCR and FREKI studies because model complexity can be increased only where measurements and validation justify it.
+
+\section*{Conclusion}
+The first turbine family establishes the hydraulic-to-mechanical conversion
+\[
+\boxed{P_m=\rho g\eta QH}
+\]
+and a simple gate-flow relation
+\[
+\boxed{Q=K_qy\sqrt{H}}.
+\]
+The next turbine milestone is a lookup-table/Hill-chart model, followed by a rotational connector and shaft dynamics.
+
+\begin{thebibliography}{9}
+\bibitem{Sharefi}
+OpenHPL resources, Francis turbine and hydraulic-system formulations.
+\url{https://build.openmodelica.org/Documentation/OpenHPL%203.0.1/Resources/Documents/Sharefi2011.pdf}
+
+\bibitem{OpenHPLTurbine}
+OpenHPL turbine-model resource.
+\url{https://build.openmodelica.org/Documentation/OpenHPL%203.0.1/Resources/Documents/Turbines_model.pdf}
+
+\bibitem{MTK}
+SciML, ModelingToolkit.jl acausal component modeling.
+\url{https://docs.sciml.ai/ModelingToolkit/stable/tutorials/acausal_components/}
+\end{thebibliography}
+\end{document}

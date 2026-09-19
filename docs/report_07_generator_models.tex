@@ -1,0 +1,90 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,siunitx,hyperref,listings,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,pdftitle={Report 7 - Generator Model Family for OpenHPL/OpenHPLjl},pdfauthor={Madhusudhan Pandey}}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,frame=single}
+\title{Report 7 - Generator Model Family for OpenHPL/OpenHPLjl}
+\author{Madhusudhan Pandey}
+\date{19 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report introduces the generator model family. The first implementation is a reduced algebraic mechanical-to-electrical power converter; later models will add swing dynamics, rotor angle, voltage, and synchronous-machine states.
+\end{abstract}
+\section{Updated Context}
+The generator converts shaft mechanical power into electrical active power:
+\[
+\boxed{\text{Shaft}\rightarrow\text{Generator}\rightarrow\text{Grid}}.
+\]
+
+\section{Generalized Concept Model}
+Inputs are shaft speed and torque. The principal electrical output is active power:
+\[
+\omega,\tau\rightarrow\text{Generator}\rightarrow P_e.
+\]
+
+\section{Other Models Available in the Literature}
+A useful hierarchy is
+\[
+\boxed{\text{ideal converter}\rightarrow\text{swing model}\rightarrow\text{classical synchronous machine}\rightarrow\text{higher-order dq machine}}.
+\]
+
+\section{Mathematics Involved}
+Mechanical input power is
+\[
+P_m=\tau\omega.
+\]
+The first reduced generator uses
+\[
+\boxed{P_e=\eta_gP_m}.
+\]
+Later synchronous-machine models will introduce
+\[
+M\dot\omega=P_m-P_e-D\Delta\omega
+\]
+and rotor-angle dynamics.
+
+\section{OpenHPL-Specific Modeling Interpretation}
+OpenHPL supports turbine-generator mechanical coupling and power-system integration. OpenHPLjl begins with a transparent reduced converter before adding detailed machine equations.
+
+\section{Implementation in Julia ModelingToolkit / SciML}
+\begin{lstlisting}
+@component function IdealGenerator(; name, eta=0.98)
+    @named shaft = RotationalPort()
+    @named grid = ElectricalPowerPort()
+
+    Pm ~ shaft.tau * shaft.omega
+    Pe ~ eta * Pm
+    grid.P ~ -Pe
+    grid.omega ~ shaft.omega
+end
+\end{lstlisting}
+
+\section{Model Assembly and Connections}
+The shaft rotational port connects to the generator mechanical port; the electrical power port connects to an infinite-grid or future dynamic-grid model.
+
+\section{Numerical Experiment / Validation}
+For
+\[
+\tau=1000~\si{\newton\meter},\quad
+\omega=100~\si{\radian\per\second},\quad
+\eta_g=0.98,
+\]
+\[
+P_m=100~\si{\kilo\watt},
+\qquad
+\boxed{P_e=98~\si{\kilo\watt}}.
+\]
+
+\section{Expected Outputs}
+The minimum outputs are
+\[
+P_m(t),\quad P_e(t),\quad\omega(t).
+\]
+
+\section{Engineering Interpretation}
+This reduced model is useful for early energy-balance and frequency-control assembly. Detailed synchronous-machine states should only be added when voltage and rotor-electromagnetic dynamics are required.
+
+\section*{Conclusion}
+The generator family now has a clean starting interface. Next models are a swing-equation generator and a classical synchronous generator.
+\end{document}
