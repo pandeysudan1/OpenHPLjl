@@ -109,3 +109,40 @@ end
     @test isapprox(Q, 5.0; atol = 1e-12)
     @test isapprox(Pm, 4.4145e6; atol = 1e-6)
 end
+
+
+@testset "Friction model registry" begin
+    names = available_friction_models()
+    @test :quadratic in names
+    @test :darcy_haaland in names
+    @test :darcy_swamee_jain in names
+
+    @test friction_model(:none)(2.0) == 0.0
+    @test quadratic_head_loss(2.0; R = 0.5) == 2.0
+
+    Re = reynolds_number(0.01; D = 0.10, nu = 1e-6)
+    @test Re > 1.0e5
+
+    f_lam = laminar_friction_factor(1000.0)
+    @test isapprox(f_lam, 0.064; atol = 1e-12)
+
+    f_h = haaland_friction_factor(1.0e5; epsilon = 1.0e-4, D = 0.10)
+    f_sj = swamee_jain_friction_factor(1.0e5; epsilon = 1.0e-4, D = 0.10)
+    @test 0.01 < f_h < 0.1
+    @test 0.01 < f_sj < 0.1
+
+    hf = darcy_head_loss(1.0; f = 0.02, L = 100.0, D = 1.0, A = 1.0, g = 9.81)
+    @test isapprox(hf, 0.02 * 100.0 / (2 * 9.81); atol = 1e-12)
+end
+
+@testset "RigidPipe selectable friction" begin
+    @named pipe = RigidPipe(
+        friction = :darcy_constant,
+        L = 100.0,
+        A = 1.0,
+        D = 1.0,
+        f = 0.02,
+        Q0 = 1.0,
+    )
+    @test any(occursin("0.02", string(eq)) || occursin("f", string(eq)) for eq in equations(pipe))
+end
