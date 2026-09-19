@@ -1,0 +1,50 @@
+name: Build All Model Family Reports
+
+on:
+  push:
+    branches:
+      - all-model-family-sources-reports
+  pull_request:
+    branches:
+      - literature-model-families
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-all-reports:
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip model pdfs]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout model-family branch
+        uses: actions/checkout@v4
+        with:
+          ref: all-model-family-sources-reports
+          fetch-depth: 0
+
+      - name: Compile Reports 11-57
+        uses: xu-cheng/texlive-action@v3
+        with:
+          run: |
+            set -e
+            cd docs/model_reports
+            for f in *.tex; do
+              echo "Compiling $f"
+              latexmk -pdf -file-line-error -halt-on-error -interaction=nonstopmode "$f"
+            done
+
+      - name: Commit compiled PDFs
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/model_reports/*.pdf
+          if git diff --cached --quiet; then
+            echo "PDFs unchanged"
+          else
+            git commit -m "Build Reports 11-57 PDFs [skip model pdfs]"
+            git pull --rebase origin all-model-family-sources-reports
+            git push origin all-model-family-sources-reports
+          fi
