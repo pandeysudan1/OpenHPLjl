@@ -1,22 +1,26 @@
 """
-    RigidPipe(; name, L=100.0, A=1.0, g=9.81, R=0.0, Q0=0.0)
+    RigidPipe(; name, friction=:quadratic, ...)
 
-Rigid, incompressible water-column model with quadratic head loss.
+Rigid, incompressible water-column model with selectable friction law.
 
-Equations
+Momentum balance
 
-    inlet.Q  = Q
-    outlet.Q = -Q
-    dQ/dt = (g*A/L) * (inlet.H - outlet.H - R*Q*abs(Q))
+    dQ/dt = (g*A/L) * (Hin - Hout - hf(Q))
 
-The HydraulicPort convention defines flow as positive into a component.
+The friction law is selected at model-construction time from
+FRICTION_MODEL_REGISTRY.
 """
 @component function RigidPipe(;
     name,
+    friction = :quadratic,
     L = 100.0,
     A = 1.0,
     g = 9.81,
     R = 0.0,
+    D = sqrt(4 * A / pi),
+    nu = 1.0e-6,
+    epsilon = 1.0e-4,
+    f = 0.02,
     Q0 = 0.0,
 )
     @named inlet = HydraulicPort()
@@ -27,23 +31,40 @@ The HydraulicPort convention defines flow as positive into a component.
         A = A
         g = g
         R = R
+        D = D
+        nu = nu
+        epsilon = epsilon
+        f = f
     end
 
     @variables begin
         Q(t) = Q0
     end
 
+    friction_fn = friction_model(friction)
+    hf = friction_fn(
+        Q;
+        R = R,
+        L = L,
+        D = D,
+        A = A,
+        g = g,
+        nu = nu,
+        epsilon = epsilon,
+        f = f,
+    )
+
     eqs = [
         inlet.Q ~ Q
         outlet.Q ~ -Q
-        D(Q) ~ (g * A / L) * (inlet.H - outlet.H - R * Q * abs(Q))
+        D(Q) ~ (g * A / L) * (inlet.H - outlet.H - hf)
     ]
 
     return System(
         eqs,
         t,
         [Q],
-        [L, A, g, R];
+        [L, A, g, R, D, nu, epsilon, f];
         systems = [inlet, outlet],
         name = name,
     )
