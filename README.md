@@ -334,3 +334,9 @@ A_s \dot H_s = Q_{in} + Q_{out},
 using the package convention that port flow is positive into a component.
 
 The next validation step is a **coupled RigidPipe-SurgeTank system**, where water inertia and tank storage create the first hydraulic oscillatory mode.
+
+
+- **Report 3 - Surge Tank Model:** `docs/report_03_surge_tank.tex`
+- **Compiled Report 3 PDF:** `docs/report_03_surge_tank.pdf`
+
+Report 3 follows the same concise 10-part structure and documents the storage equation, MTK implementation, analytical mass-balance test, expected outputs, and the next coupled RigidPipe-SurgeTank oscillation study.
