@@ -1,0 +1,85 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,siunitx,hyperref,listings,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,pdftitle={Report 8 - Grid Model Family for OpenHPL/OpenHPLjl},pdfauthor={Madhusudhan Pandey}}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,frame=single}
+\title{Report 8 - Grid Model Family for OpenHPL/OpenHPLjl}
+\author{Madhusudhan Pandey}
+\date{19 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report introduces the grid model family. The first implementation is an infinite-grid frequency boundary used to close reduced electromechanical models and prepare the package for SMIB studies.
+\end{abstract}
+\section{Updated Context}
+The grid is the downstream electrical boundary:
+\[
+\boxed{\text{Generator}\rightarrow\text{Grid}}.
+\]
+For the first SMIB studies, the grid is treated as infinitely strong.
+
+\section{Generalized Concept Model}
+An infinite grid fixes electrical frequency while accepting whatever active power is injected by the connected generator.
+
+\section{Other Models Available in the Literature}
+A useful hierarchy is
+\[
+\boxed{\text{infinite bus}\rightarrow\text{frequency-dependent grid}\rightarrow\text{SMIB network}\rightarrow\text{multi-machine grid}}.
+\]
+
+\section{Mathematics Involved}
+For nominal frequency $f_0$,
+\[
+\boxed{\omega_g=2\pi f_0}.
+\]
+At $50~\si{\hertz}$,
+\[
+\omega_g=100\pi~\si{\radian\per\second}.
+\]
+
+\section{OpenHPL-Specific Modeling Interpretation}
+OpenHPL contains power-system interfaces intended to couple hydropower plant dynamics to electrical-system models. OpenHPLjl first establishes a reduced active-power/frequency port before introducing voltage-angle network equations.
+
+\section{Implementation in Julia ModelingToolkit / SciML}
+\begin{lstlisting}
+@connector ElectricalPowerPort begin
+    omega(t)
+    P(t), [connect = Flow]
+end
+
+@component function InfiniteGrid(; name, f0=50.0)
+    @named port = ElectricalPowerPort()
+    port.omega ~ 2*pi*f0
+end
+\end{lstlisting}
+
+\section{Model Assembly and Connections}
+The ideal generator electrical port connects directly to the infinite grid. The connected generator determines active-power exchange while the grid fixes frequency.
+
+\section{Numerical Experiment / Validation}
+For
+\[
+f_0=50~\si{\hertz},
+\]
+the expected angular frequency is
+\[
+\boxed{\omega_g=100\pi\approx314.159~\si{\radian\per\second}}.
+\]
+
+\section{Expected Outputs}
+Useful outputs are
+\[
+f(t),\quad\omega(t),\quad P(t).
+\]
+For the infinite grid, frequency remains constant.
+
+\section{Engineering Interpretation}
+The infinite-grid model is a boundary condition, not a dynamic grid. It is appropriate for early SMIB validation before finite grid inertia, load damping, transmission, and inter-area dynamics are introduced.
+
+\section*{Conclusion}
+The first electrical boundary is now available. The next milestone is the complete reduced chain
+\[
+\boxed{\text{Turbine}\rightarrow\text{Shaft}\rightarrow\text{Generator}\rightarrow\text{InfiniteGrid}}
+\]
+followed by a full hydropower SMIB model.
+\end{document}
