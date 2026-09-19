@@ -202,11 +202,56 @@ Typical electrical/control outputs:
 
 Every major component should have at least one numerical validation experiment and a clearly stated expected result.
 
+## Development flow
+
+### Previous commits
+
+The fresh kickoff established a minimal ModelingToolkit/SciML package and removed the older experimental scaffolding from the active tree. The next commits added **Report 1 - Reservoir Model** in LaTeX and linked it from this README.
+
+The current baseline on `main` is therefore:
+
+```text
+fresh package kickoff
+    -> reservoir modeling report
+    -> README/report integration
+```
+
+### Current branch - `reservoir-model`
+
+This branch turns the reservoir report into the first complete component milestone. It also builds and stores the compiled PDF version of Report 1.
+
+Current branch flow:
+
+```text
+Report 1 mathematics
+    -> HydraulicPort
+    -> InfiniteReservoir
+    -> DynamicReservoir
+    -> analytical mass-balance tests
+    -> simulation/validation plots
+```
+
+### Next commit
+
+The next implementation commit should add:
+
+- `src/Interfaces/HydraulicPort.jl`
+- `src/Reservoirs/InfiniteReservoir.jl`
+- `src/Reservoirs/Reservoir.jl`
+- reservoir exports from `src/OpenHPLjl.jl`
+- analytical conservation tests in `test/`
+- one minimal simulation example
+- expected-output checks for head and flow
+- documentation links from this README
+
+After the reservoir component is validated, the next modeling branch should introduce the **RigidPipe** from momentum conservation and water inertia.
+
 ## Next steps
 
 - [ ] Define notation, SI units, sign conventions, and modeling rules.
 - [ ] Implement `HydraulicPort`.
 - [x] Write **Report 1: Reservoir** in `docs/report_01_reservoir.tex`.
+- [x] Compile Report 1 to `docs/report_01_reservoir.pdf` on the `reservoir-model` branch.
 - [ ] Implement constant-head reservoir.
 - [ ] Implement finite-storage reservoir.
 - [ ] Add analytical reservoir mass-balance tests.
@@ -228,7 +273,8 @@ The first technical milestone is a tested hydraulic connector plus reservoir mod
 
 ## Technical reports
 
-- **Report 1 — Reservoir Model:** `docs/report_01_reservoir.tex`
+- **Report 1 - Reservoir Model:** `docs/report_01_reservoir.tex`
+- **Compiled Report 1 PDF:** `docs/report_01_reservoir.pdf`
   - updated engineering context
   - generalized concept model
   - literature model hierarchy
