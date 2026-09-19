@@ -105,6 +105,11 @@ OpenHPLjl is intended to support more than time-domain simulation. Planned analy
 ```text
 OpenHPLjl/
 ├── src/
+│   ├── Interfaces/
+│   │   └── HydraulicPort.jl
+│   ├── Reservoirs/
+│   │   ├── InfiniteReservoir.jl
+│   │   └── Reservoir.jl
 │   └── OpenHPLjl.jl
 ├── test/
 │   └── runtests.jl
@@ -202,14 +207,79 @@ Typical electrical/control outputs:
 
 Every major component should have at least one numerical validation experiment and a clearly stated expected result.
 
+## Development flow
+
+### Previous commits
+
+The fresh kickoff established a minimal ModelingToolkit/SciML package and removed the older experimental scaffolding from the active tree. The next commits added **Report 1 - Reservoir Model** in LaTeX and linked it from this README.
+
+The current baseline on `main` is therefore:
+
+```text
+fresh package kickoff
+    -> reservoir modeling report
+    -> README/report integration
+```
+
+### Current branch - `reservoir-model`
+
+This branch turns the reservoir report into the first complete component milestone. It also builds and stores the compiled PDF version of Report 1.
+
+Current branch flow:
+
+```text
+Report 1 mathematics
+    -> HydraulicPort
+    -> InfiniteReservoir
+    -> DynamicReservoir
+    -> analytical mass-balance tests
+    -> simulation/validation plots
+```
+
+### Current source milestone
+
+The first equation-based source components are now organized as:
+
+```text
+src/
+├── Interfaces/
+│   └── HydraulicPort.jl
+├── Reservoirs/
+│   ├── InfiniteReservoir.jl
+│   └── Reservoir.jl
+└── OpenHPLjl.jl
+```
+
+The hydraulic sign convention is **flow positive into a component**. The finite reservoir therefore uses
+
+```math
+A\dot H = Q_{in} + Q_{port}.
+```
+
+For generation outflow, `Q_port < 0`.
+
+### Next commit
+
+The next implementation commit should add:
+
+- one minimal reservoir simulation example under `examples/`
+- expected-output plots for head and flow
+- a nonlinear-geometry reservoir variant
+- equation/unknown-count diagnostics
+- CI timing summary from the real Julia 1.12 / ModelingToolkit 11 run
+- documentation links from this README
+
+After the reservoir component is validated, the next modeling branch should introduce the **RigidPipe** from momentum conservation and water inertia.
+
 ## Next steps
 
 - [ ] Define notation, SI units, sign conventions, and modeling rules.
-- [ ] Implement `HydraulicPort`.
+- [x] Implement `HydraulicPort`.
 - [x] Write **Report 1: Reservoir** in `docs/report_01_reservoir.tex`.
-- [ ] Implement constant-head reservoir.
-- [ ] Implement finite-storage reservoir.
-- [ ] Add analytical reservoir mass-balance tests.
+- [x] Compile Report 1 to `docs/report_01_reservoir.pdf` on the `reservoir-model` branch.
+- [x] Implement constant-head reservoir.
+- [x] Implement finite-storage reservoir.
+- [x] Add analytical reservoir mass-balance tests.
 - [ ] Implement `RigidPipe` from momentum balance.
 - [ ] Add step/ramp experiments for the first waterway.
 - [ ] Introduce `SurgeTank` and validate its oscillation.
@@ -228,7 +298,8 @@ The first technical milestone is a tested hydraulic connector plus reservoir mod
 
 ## Technical reports
 
-- **Report 1 — Reservoir Model:** `docs/report_01_reservoir.tex`
+- **Report 1 - Reservoir Model:** `docs/report_01_reservoir.tex`
+- **Compiled Report 1 PDF:** `docs/report_01_reservoir.pdf`
   - updated engineering context
   - generalized concept model
   - literature model hierarchy

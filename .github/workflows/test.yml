@@ -1,0 +1,46 @@
+name: Julia package test
+
+on:
+  push:
+    branches:
+      - reservoir-model
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: julia-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      JULIA_PKG_PRECOMPILE_AUTO: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Julia 1.12
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+
+      - name: Cache Julia depot
+        uses: julia-actions/cache@v2
+
+      - name: Resolve latest compatible dependencies
+        shell: bash
+        run: |
+          time julia --project=. --startup-file=no -e 'using Pkg; Pkg.update(); Pkg.instantiate(); Pkg.status()'
+
+      - name: Precompile dependencies
+        shell: bash
+        run: |
+          time julia --project=. --startup-file=no -e 'using Pkg; Pkg.precompile()'
+
+      - name: Run package tests with timing
+        shell: bash
+        run: |
+          time julia --project=. --startup-file=no -e 'using Pkg; Pkg.test(; coverage=false)'

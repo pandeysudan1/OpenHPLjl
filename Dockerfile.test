@@ -1,0 +1,12 @@
+FROM julia:1.12-bookworm
+
+WORKDIR /app
+COPY Project.toml ./
+RUN julia --project=. --startup-file=no -e 'using Pkg; Pkg.update(); Pkg.instantiate(); Pkg.precompile(); Pkg.status()'
+
+COPY src ./src
+COPY test ./test
+
+RUN /usr/bin/time -v julia --project=. --startup-file=no -e 'using Pkg; Pkg.test(; coverage=false)'
+
+CMD ["julia", "--version"]

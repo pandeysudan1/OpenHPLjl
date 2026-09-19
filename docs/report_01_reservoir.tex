@@ -15,6 +15,29 @@ This report defines the reservoir as the first physical component in an equation
 \tableofcontents
 \newpage
 
+\section{Project Development Flow}
+
+The fresh OpenHPLjl kickoff established a minimal ModelingToolkit/SciML package and removed older experimental scaffolding from the active tree. The following commits added this reservoir report and linked the technical-report workflow from the project README.
+
+This branch, \texttt{reservoir-model}, is the first component-development branch. Its purpose is to move from documented mathematics to tested equation-based implementation:
+\[
+\boxed{
+\text{Report 1}
+\rightarrow
+\texttt{HydraulicPort}
+\rightarrow
+\texttt{InfiniteReservoir}
+\rightarrow
+\texttt{DynamicReservoir}
+\rightarrow
+\text{mass-balance tests}
+\rightarrow
+\text{validation simulation}
+}
+\]
+
+The next implementation commit should therefore introduce the hydraulic connector, constant-head and finite-storage reservoir components, analytical conservation tests, and one minimal numerical experiment. Once this milestone is validated, the next component will be the rigid waterway model based on momentum conservation and water inertia.
+
 \section{Updated Context}
 A reservoir is normally the upstream hydraulic boundary of a hydropower plant. It stores gravitational potential energy and establishes the hydraulic head available to the downstream waterway.
 
