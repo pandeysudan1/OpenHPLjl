@@ -1,0 +1,409 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,array,siunitx,hyperref,xcolor,listings,enumitem,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,pdftitle={Report 1 -- Reservoir Model for OpenHPL/OpenHPLjl},pdfauthor={Madhusudhan Pandey}}
+\lstdefinelanguage{Julia}{keywords={using,begin,end,function,return,if,else,elseif,for,while,let,struct,module,where,do,try,catch,finally,macro,local,global,const,export,import},sensitive=true,comment=[l]\#,morestring=[b]"}
+\lstset{language=Julia,basicstyle=\ttfamily\small,breaklines=true,frame=single,columns=fullflexible,showstringspaces=false}
+\title{Report 1 --- Reservoir Model for OpenHPL/OpenHPLjl}
+\author{Madhusudhan Pandey}
+\date{\today}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report defines the reservoir as the first physical component in an equation-based hydropower modeling workflow using ModelingToolkit.jl and the SciML ecosystem. It follows the OpenHPLjl documentation sequence: updated context, generalized concept, literature model classes, OpenHPL mathematics and interpretation, Julia implementation, assembly, validation, expected outputs, and engineering interpretation.
+\end{abstract}
+\tableofcontents
+\newpage
+
+\section{Updated Context}
+A reservoir is normally the upstream hydraulic boundary of a hydropower plant. It stores gravitational potential energy and establishes the hydraulic head available to the downstream waterway.
+
+\[
+\boxed{\text{Reservoir}\rightarrow\text{Intake}\rightarrow\text{Waterway}\rightarrow\text{Surge Tank}\rightarrow\text{Penstock}\rightarrow\text{Turbine}\rightarrow\text{Shaft}\rightarrow\text{Generator}\rightarrow\text{Grid}}
+\]
+
+OpenHPL is an open-source Modelica hydropower library containing waterway, electromechanical, controller, interface, and example models. The current OpenModelica-generated documentation identifies version 3.0.1 \cite{OpenHPLDocs}. Its user guide states that reservoirs, conduits, surge tanks, and fittings are based on mass and momentum balances, and that a hydrology model is available for reservoir inflow studies \cite{OpenHPLUserGuide}.
+
+For short dynamic studies such as governor response or frequency containment reserve (FCR), the upper reservoir can often be approximated as a constant-head boundary. For longer simulations, reservoir storage dynamics should be retained.
+
+The objective of the OpenHPLjl reservoir component is to provide a reusable equation-based model that can range from a constant-head reservoir to a nonlinear finite-storage reservoir without changing the downstream hydraulic interface.
+
+\section{Generalized Concept Model}
+The most general lumped reservoir representation is
+\[
+\boxed{\text{Inflow}\rightarrow\text{Storage}\rightarrow\text{Outflow}},
+\qquad
+Q_{\mathrm{in}}\rightarrow V(H)\rightarrow Q_{\mathrm{out}}.
+\]
+
+\begin{table}[ht]
+\centering
+\caption{Principal reservoir variables.}
+\begin{tabular}{lll}
+\toprule
+Quantity & Symbol & SI unit \\
+\midrule
+Reservoir volume & $V$ & \si{\meter\cubed} \\
+Water level / hydraulic head & $H$ & \si{\meter} \\
+Inflow & $Q_{\mathrm{in}}$ & \si{\meter\cubed\per\second} \\
+Outflow & $Q_{\mathrm{out}}$ & \si{\meter\cubed\per\second} \\
+Free-surface area & $A$ & \si{\meter\squared} \\
+Water density & $\rho$ & \si{\kilogram\per\meter\cubed} \\
+Gravitational acceleration & $g$ & \si{\meter\per\second\squared} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A generalized hydraulic connector contains
+\[
+\boxed{H,\quad Q},
+\]
+where $H$ is an across/potential variable and $Q$ is a through/flow variable. For two connected components,
+\[
+H_1=H_2,\qquad Q_1+Q_2=0.
+\]
+
+\section{Other Models Available in the Literature}
+\subsection{Infinite or Constant-Head Reservoir}
+\[
+H(t)=H_0.
+\]
+There is no dynamic reservoir state. This is useful for short studies dominated by turbine, governor, waterway, or grid dynamics.
+
+\subsection{Lumped Constant-Area Reservoir}
+For a finite reservoir with approximately constant area,
+\[
+V=A_rH,
+\qquad
+A_r\frac{dH}{dt}=Q_{\mathrm{in}}-Q_{\mathrm{out}}.
+\]
+
+\subsection{Nonlinear Geometry Reservoir}
+For realistic geometry,
+\[
+V=V(H),\qquad
+A(H)=\frac{dV}{dH},
+\]
+so
+\[
+A(H)\dot H=Q_{\mathrm{in}}-Q_{\mathrm{out}}.
+\]
+The function $V(H)$ can come from surveyed geometry, fitted polynomials, or lookup tables.
+
+\subsection{Reservoir With Hydrological Dynamics}
+A longer-term model can use
+\[
+Q_{\mathrm{in}}=Q_{\mathrm{rain}}+Q_{\mathrm{snow}}+Q_{\mathrm{catchment}}-Q_{\mathrm{evaporation}}.
+\]
+OpenHPL includes hydrological modeling capability for reservoir inflow \cite{OpenHPLUserGuide}.
+
+\subsection{Distributed or Spatial Reservoir Models}
+For large lakes or flood studies, water level may vary spatially and PDE-based shallow-water or free-surface equations may be required.
+
+A useful hierarchy is
+\[
+\boxed{\text{Constant head}\rightarrow\text{Lumped storage}\rightarrow\text{Nonlinear geometry}\rightarrow\text{Hydrological reservoir}\rightarrow\text{Distributed PDE model}}.
+\]
+
+\section{Mathematics Involved in the OpenHPL Concept/Model}
+\subsection{Fundamental Conservation Law}
+For incompressible water,
+\[
+\frac{dm}{dt}=\dot m_{\mathrm{in}}-\dot m_{\mathrm{out}},\qquad m=\rho V.
+\]
+With approximately constant density,
+\[
+\boxed{\frac{dV}{dt}=Q_{\mathrm{in}}-Q_{\mathrm{out}}}.
+\]
+
+\subsection{Constant-Area Reservoir}
+If $V=A_rH$,
+\[
+\boxed{A_r\dot H=Q_{\mathrm{in}}-Q_{\mathrm{out}}},
+\qquad
+\boxed{\dot H=\frac{Q_{\mathrm{in}}-Q_{\mathrm{out}}}{A_r}}.
+\]
+The dynamic state is $x=H$.
+
+\subsection{Nonlinear Reservoir Geometry}
+For $V=V(H)$,
+\[
+\dot V=\frac{dV}{dH}\dot H.
+\]
+With $A(H)=dV/dH$,
+\[
+\boxed{A(H)\dot H=Q_{\mathrm{in}}-Q_{\mathrm{out}}}.
+\]
+For example,
+\[
+A(H)=a_0+a_1H+a_2H^2
+\]
+gives
+\[
+\dot H=\frac{Q_{\mathrm{in}}-Q_{\mathrm{out}}}{a_0+a_1H+a_2H^2}.
+\]
+
+\subsection{Hydraulic Pressure and Head}
+At an outlet elevation $z_o$,
+\[
+p_o=p_{\mathrm{atm}}+\rho g(H-z_o).
+\]
+Hydraulic head can be written
+\[
+H_p=\frac{p}{\rho g}+z.
+\]
+
+\subsection{State-Space / DAE Form}
+A convenient organization is
+\[
+x=H,
+\qquad
+z=\begin{bmatrix}V\\A\end{bmatrix},
+\qquad
+u=\begin{bmatrix}Q_{\mathrm{in}}\\Q_{\mathrm{out}}\end{bmatrix}.
+\]
+The equation-based form is
+\[
+\dot x=f(x,z,u,p),\qquad 0=g(x,z,u,p),
+\]
+with
+\[
+\dot H=\frac{Q_{\mathrm{in}}-Q_{\mathrm{out}}}{A(H)},\qquad V=V(H),\qquad A=\frac{dV}{dH}.
+\]
+
+\section{OpenHPL-Specific Modeling Interpretation}
+OpenHPL is a component-oriented Modelica library whose waterway models are constructed from conservation equations and connected through physical interfaces \cite{OpenHPLUserGuide}. The published Trollheim case study used OpenHPL to model, tune, and validate a real hydropower plant against experimental measurements \cite{Trollheim2019}.
+
+Conceptually,
+\[
+\boxed{\text{Reservoir.port}\longleftrightarrow\text{Waterway.port}}.
+\]
+For a fixed reservoir,
+\[
+H_{\mathrm{port}}=H_0.
+\]
+For a dynamic reservoir, when port flow is positive into the component,
+\[
+H_{\mathrm{port}}=H(t),\qquad A(H)\dot H=Q_{\mathrm{in}}+Q_{\mathrm{port}}.
+\]
+During normal generation at an outlet port, $Q_{\mathrm{port}}<0$.
+
+\section{Implementation in Julia ModelingToolkit / SciML}
+ModelingToolkit supports acausal connection semantics. Variables marked with \texttt{connect = Flow} sum to zero over a connection set, while ordinary connector variables are equated \cite{MTKConnect}.
+
+\subsection{Hydraulic Connector}
+\begin{lstlisting}
+using ModelingToolkit
+using ModelingToolkit: t_nounits as t, D_nounits as D
+
+@connector HydraulicPort begin
+    H(t), [description = "Hydraulic head [m]"]
+    Q(t), [connect = Flow,
+           description = "Volumetric flow into component [m^3/s]"]
+end
+\end{lstlisting}
+
+\subsection{Infinite Reservoir Model}
+\begin{lstlisting}
+@mtkmodel InfiniteReservoir begin
+    @parameters begin
+        H0 = 100.0,
+        [description = "Constant reservoir head [m]"]
+    end
+    @components begin
+        port = HydraulicPort()
+    end
+    @equations begin
+        port.H ~ H0
+    end
+end
+\end{lstlisting}
+
+\subsection{Constant-Area Dynamic Reservoir}
+\begin{lstlisting}
+@mtkmodel Reservoir begin
+    @parameters begin
+        A = 1.0e6,
+        [description = "Free-surface area [m^2]"]
+        H0 = 100.0,
+        [description = "Initial water level [m]"]
+    end
+    @variables begin
+        H(t) = H0,
+        [description = "Reservoir water level [m]"]
+        Qin(t) = 0.0,
+        [description = "External inflow [m^3/s]"]
+    end
+    @components begin
+        port = HydraulicPort()
+    end
+    @equations begin
+        A * D(H) ~ Qin + port.Q
+        port.H ~ H
+    end
+end
+\end{lstlisting}
+
+\subsection{Nonlinear Geometry Reservoir}
+\begin{lstlisting}
+@mtkmodel NonlinearReservoir begin
+    @parameters begin
+        a0 = 1.0e6
+        a1 = 0.0
+        a2 = 0.0
+        H0 = 100.0
+    end
+    @variables begin
+        H(t) = H0
+        Qin(t) = 0.0
+        Aeff(t)
+    end
+    @components begin
+        port = HydraulicPort()
+    end
+    @equations begin
+        Aeff ~ a0 + a1*H + a2*H^2
+        Aeff * D(H) ~ Qin + port.Q
+        port.H ~ H
+    end
+end
+\end{lstlisting}
+
+\section{Model Assembly and Connections}
+\begin{lstlisting}
+@named reservoir = Reservoir()
+@named pipe = RigidPipe()
+
+connections = [
+    connect(reservoir.port, pipe.inlet)
+]
+\end{lstlisting}
+
+The connection contributes
+\[
+H_{\mathrm{reservoir}}=H_{\mathrm{pipe,in}},
+\qquad
+Q_{\mathrm{reservoir}}+Q_{\mathrm{pipe,in}}=0.
+\]
+
+The future chain can evolve as
+\[
+\boxed{\texttt{Reservoir}\rightarrow\texttt{RigidPipe}\rightarrow\texttt{SurgeTank}\rightarrow\texttt{Penstock}\rightarrow\texttt{Turbine}}.
+\]
+
+\section{Numerical Experiment / Validation}
+Consider
+\[
+A=1000~\si{\meter\squared},\quad
+Q_{\mathrm{in}}=10~\si{\meter\cubed\per\second},\quad
+Q_{\mathrm{out}}=12~\si{\meter\cubed\per\second}.
+\]
+Then
+\[
+\dot H=\frac{10-12}{1000}=-0.002~\si{\meter\per\second}.
+\]
+After \SI{10}{\second},
+\[
+H(10)-H(0)=-0.02~\si{\meter},
+\]
+hence
+\[
+\boxed{H(10)=H_0-0.02~\si{\meter}}.
+\]
+
+\begin{lstlisting}
+using ModelingToolkit
+using OrdinaryDiffEq
+
+compiled = mtkcompile(model)
+prob = ODEProblem(compiled, [], (0.0, 10.0))
+sol = solve(prob, Tsit5())
+\end{lstlisting}
+
+For larger coupled hydraulic systems, solver selection should be revisited based on stiffness, algebraic structure, and initialization requirements.
+
+\section{Expected Outputs}
+For a constant-head reservoir,
+\[
+H(t)=H_0.
+\]
+For a dynamic reservoir, useful outputs are
+\[
+H(t),\quad V(t),\quad Q_{\mathrm{in}}(t),\quad Q_{\mathrm{out}}(t),
+\]
+and, where useful,
+\[
+P_h(t)=\rho gQH.
+\]
+
+Recommended plots are reservoir level, inflow/outflow, stored volume, and a mass-balance residual. For the explicit outflow convention,
+\[
+r_m=\dot V-Q_{\mathrm{in}}+Q_{\mathrm{out}},
+\qquad
+r_m\approx0.
+\]
+For the connector convention,
+\[
+\dot V=Q_{\mathrm{in}}+Q_{\mathrm{port}},
+\]
+and the residual must use the same sign convention.
+
+\section{Engineering Interpretation}
+The reservoir establishes a core OpenHPLjl principle:
+\[
+\boxed{\text{Do not prescribe signal direction unnecessarily.}}
+\]
+Instead, define physical variables, connector semantics, and conservation laws.
+
+For early SMIB and FCR studies, a useful starting point is
+\[
+\boxed{H=H_0},
+\]
+while longer studies can use
+\[
+\boxed{A(H)\dot H=Q_{\mathrm{in}}-Q_{\mathrm{out}}}.
+\]
+
+Thus,
+\[
+\boxed{\texttt{InfiniteReservoir}\subset\texttt{DynamicReservoir}\subset\texttt{NonlinearReservoir}}
+\]
+can preserve one hydraulic connection concept while increasing model fidelity.
+
+\section*{Conclusion}
+\addcontentsline{toc}{section}{Conclusion}
+The reservoir is the natural first component because it introduces
+\[
+\boxed{\text{physical conservation}+\text{acausal connectors}+\text{DAE formulation}+\text{component reuse}}.
+\]
+Its fundamental law is
+\[
+\boxed{\frac{dV}{dt}=Q_{\mathrm{in}}-Q_{\mathrm{out}}},
+\]
+or
+\[
+\boxed{A(H)\dot H=Q_{\mathrm{in}}-Q_{\mathrm{out}}}.
+\]
+The next component is the rigid waterway/rigid pipe, which introduces momentum balance and water inertia.
+
+\begin{thebibliography}{9}
+\bibitem{OpenHPLDocs}
+OpenHPL documentation, \emph{Open-source hydropower library, Version 3.0.1}.
+\url{https://build.openmodelica.org/Documentation/OpenHPL.html}
+
+\bibitem{OpenHPLUserGuide}
+OpenHPL, \emph{User's Guide}.
+\url{https://build.openmodelica.org/Documentation/OpenHPL.UsersGuide.html}
+
+\bibitem{Trollheim2019}
+L. Vytvytskyi and B. Lie,
+OpenHPL for Modelling the Trollheim Hydropower Plant,
+\emph{Energies}, 12(12), 2303, 2019.
+\url{https://doi.org/10.3390/en12122303}
+
+\bibitem{MTKConnect}
+SciML, \emph{ModelingToolkit.jl: Acausal Component-Based Modeling}.
+\url{https://docs.sciml.ai/ModelingToolkit/stable/tutorials/acausal_components/}
+\end{thebibliography}
+
+\end{document}
