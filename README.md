@@ -206,7 +206,7 @@ Every major component should have at least one numerical validation experiment a
 
 - [ ] Define notation, SI units, sign conventions, and modeling rules.
 - [ ] Implement `HydraulicPort`.
-- [ ] Write **Report 1: Reservoir** in `docs/`.
+- [x] Write **Report 1: Reservoir** in `docs/report_01_reservoir.tex`.
 - [ ] Implement constant-head reservoir.
 - [ ] Implement finite-storage reservoir.
 - [ ] Add analytical reservoir mass-balance tests.
@@ -225,3 +225,25 @@ Every major component should have at least one numerical validation experiment a
 This commit is the **fresh project kickoff**. Previous experimental package contents were intentionally removed from the active tree. They remain available through Git history.
 
 The first technical milestone is a tested hydraulic connector plus reservoir model.
+
+## Technical reports
+
+- **Report 1 — Reservoir Model:** `docs/report_01_reservoir.tex`
+  - updated engineering context
+  - generalized concept model
+  - literature model hierarchy
+  - OpenHPL mathematics and interpretation
+  - ModelingToolkit/SciML implementation
+  - connection semantics
+  - numerical validation
+  - expected outputs and engineering interpretation
+
+Compile locally with a standard LaTeX distribution, for example:
+
+```bash
+cd docs
+pdflatex report_01_reservoir.tex
+pdflatex report_01_reservoir.tex
+```
+
+The next report will cover the **RigidPipe / rigid waterway model**, beginning from momentum conservation and water inertia.
