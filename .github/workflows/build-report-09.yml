@@ -1,0 +1,41 @@
+name: Build Report 9 Model Families Overview
+
+on:
+  push:
+    branches:
+      - literature-model-overview
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    if: ${{ !contains(github.event.head_commit.message, '[skip pdf9]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout study branch
+        uses: actions/checkout@v4
+        with:
+          ref: literature-model-overview
+          fetch-depth: 0
+
+      - name: Compile Report 9
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_09_model_families_overview.tex
+          working_directory: docs
+
+      - name: Commit compiled PDF
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_09_model_families_overview.pdf
+          if git diff --cached --quiet; then
+            echo "PDF unchanged"
+          else
+            git commit -m "Build Report 9 model-family overview PDF [skip pdf9]"
+            git pull --rebase origin literature-model-overview
+            git push origin literature-model-overview
+          fi
