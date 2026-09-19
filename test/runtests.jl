@@ -49,3 +49,25 @@ end
     @test isapprox(simulated_H10, expected_H10; atol = 1e-8, rtol = 1e-8)
     @test isapprox(expected_H10, 99.98; atol = 1e-12)
 end
+
+
+@testset "RigidPipe momentum balance" begin
+    @named pipe = RigidPipe(L = 100.0, A = 1.0, g = 9.81, R = 0.0, Q0 = 0.0)
+
+    boundary_eqs = [
+        pipe.inlet.H ~ 100.0
+        pipe.outlet.H ~ 90.0
+    ]
+
+    @named model = System(boundary_eqs, ModelingToolkit.t_nounits; systems = [pipe])
+    compiled = mtkcompile(model)
+
+    prob = ODEProblem(compiled, [], (0.0, 1.0))
+    sol = solve(prob, Tsit5(); abstol = 1e-10, reltol = 1e-10)
+
+    expected_Q1 = (9.81 * 1.0 / 100.0) * (100.0 - 90.0) * 1.0
+    simulated_Q1 = sol[compiled.pipe.Q][end]
+
+    @test isapprox(expected_Q1, 0.981; atol = 1e-12)
+    @test isapprox(simulated_Q1, expected_Q1; atol = 1e-8, rtol = 1e-8)
+end
