@@ -221,9 +221,9 @@ fresh package kickoff
     -> README/report integration
 ```
 
-### Current branch - `reservoir-model`
+### Current branch - `rigid-pipe-model`
 
-This branch turns the reservoir report into the first complete component milestone. It also builds and stores the compiled PDF version of Report 1.
+This branch adds the first waterway momentum model on top of the reservoir milestone. It includes Report 2, the `RigidPipe` source model, and an analytical momentum-balance test.
 
 Current branch flow:
 
@@ -280,8 +280,8 @@ After the reservoir component is validated, the next modeling branch should intr
 - [x] Implement constant-head reservoir.
 - [x] Implement finite-storage reservoir.
 - [x] Add analytical reservoir mass-balance tests.
-- [ ] Implement `RigidPipe` from momentum balance.
-- [ ] Add step/ramp experiments for the first waterway.
+- [x] Implement `RigidPipe` from momentum balance.
+- [x] Add analytical head-step test for the first waterway.
 - [ ] Introduce `SurgeTank` and validate its oscillation.
 - [ ] Add turbine model and characteristic lookup-table interface.
 - [ ] Assemble the first reservoir-to-turbine hydraulic system.
@@ -317,4 +317,9 @@ pdflatex report_01_reservoir.tex
 pdflatex report_01_reservoir.tex
 ```
 
-The next report will cover the **RigidPipe / rigid waterway model**, beginning from momentum conservation and water inertia.
+- **Report 2 - Rigid Pipe Model:** `docs/report_02_rigid_pipe.tex`
+- **Compiled Report 2 PDF:** `docs/report_02_rigid_pipe.pdf`
+
+Report 2 is intentionally concise and follows the same 10-part structure as Report 1.
+
+The next report/component will cover the **SurgeTank**, coupling waterway momentum with local hydraulic storage.
