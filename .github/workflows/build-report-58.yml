@@ -1,0 +1,43 @@
+name: Build Report 58 SMIB Measurement Control
+
+on:
+  push:
+    branches:
+      - smib-measurement-control
+  pull_request:
+    branches:
+      - all-model-family-sources-reports
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: smib-measurement-control
+          fetch-depth: 0
+
+      - name: Compile Report 58
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_58_smib_measurement_control.tex
+          working_directory: docs
+
+      - name: Commit compiled PDF
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_58_smib_measurement_control.pdf
+          if git diff --cached --quiet; then
+            echo "PDF unchanged"
+          else
+            git commit -m "Build Report 58 SMIB measurement-control PDF [skip pdf58]"
+            git pull --rebase origin smib-measurement-control || true
+            git push origin smib-measurement-control || true
+          fi
