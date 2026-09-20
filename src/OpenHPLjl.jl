@@ -37,6 +37,16 @@ include("Electrical/Generators/SMIBGenerator.jl")
 include("Electrical/Grids/InfiniteGrid.jl")
 include("Systems/ReducedSMIB.jl")
 
+# FCR / FREKI screening utilities.
+include("FCR/FrequencyTestGrid.jl")
+include("FCR/FrequencySignals.jl")
+include("FCR/FCRDroopController.jl")
+include("FCR/FCRMetrics.jl")
+include("FCR/SineFit.jl")
+include("FCR/NordicStability.jl")
+include("FCR/FCRCapacitySearch.jl")
+include("FCR/FCRTestSMIB.jl")
+
 export HydraulicPort, RotationalPort, ElectricalPowerPort
 export SignalSocket, SignalPlug
 export InfiniteReservoir, Reservoir
@@ -50,6 +60,12 @@ export ConstantSignal, FrequencySensor, DroopGovernor
 export IdealTurbine, SimpleGateTurbine, ControlledGateTurbine, ShaftCoupledTurbine
 export LumpedShaft, IdealGenerator, SMIBGenerator, InfiniteGrid
 export ReducedSMIB
+export FrequencyTestGrid, RampFrequencySignal, SineFrequencySignal
+export FCRDroopController, FCRTestSMIB
+export trapezoid_integral, fcrd_metrics
+export sine_fit, normalized_fcr_sine_response
+export nordic_open_loop, nyquist_screen
+export fcr_capacity_search
 export project_status
 
 """
