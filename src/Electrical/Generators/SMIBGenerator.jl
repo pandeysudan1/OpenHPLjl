@@ -10,8 +10,7 @@ the rotor-angle state:
 
 Mechanical and electrical power satisfy
 
-    Pm = shaft.tau*shaft.omega
-    Pe = eta*Pm
+    Pe = eta*shaft.tau*shaft.omega
     Pe = Pmax*sin(delta)
 
 and generated electrical power leaves the component:
@@ -38,22 +37,20 @@ contains no duplicate swing inertia.
 
     @variables begin
         delta(t) = delta0, [description = "Rotor electrical angle relative to grid [rad]"]
-        Pm(t), [guess = 1.0e6, description = "Mechanical power into generator [W]"]
         Pe(t), [guess = 1.0e6, description = "Electrical power exported [W]"]
     end
 
     eqs = [
         D(delta) ~ shaft.omega - grid.omega
-        Pm ~ shaft.tau * shaft.omega
-        Pe ~ eta * Pm
         Pe ~ Pmax * sin(delta)
+        Pe ~ eta * shaft.tau * shaft.omega
         grid.P ~ -Pe
     ]
 
     return System(
         eqs,
         t,
-        [delta, Pm, Pe],
+        [delta, Pe],
         [eta, Pmax, delta0];
         systems = [shaft, grid],
         name = name,

@@ -63,7 +63,6 @@ governor command equal to the initial gate opening.
         g = g,
         Q0 = Q0,
     )
-    @named surge = SurgeTank(As = As, H0 = Hup)
     @named penstock = RigidPipe(
         friction = :none,
         L = L_penstock,
@@ -101,12 +100,12 @@ governor command equal to the initial gate opening.
 
     eqs = [
         connect(upstream.port, headrace.inlet)
-        connect(headrace.outlet, surge.inlet)
-        connect(surge.outlet, penstock.inlet)
+        connect(headrace.outlet, penstock.inlet)
         connect(penstock.outlet, turbine.inlet)
         connect(turbine.outlet, tailwater.port)
         connect(turbine.shaft, shaft.drive)
-        connect(shaft.load, generator.shaft, frequency_sensor.port)
+        connect(shaft.load, generator.shaft)
+        frequency_sensor.port.omega ~ shaft.load.omega
         connect(generator.grid, grid.port)
         connect(frequency_sensor.y, governor.f_meas)
         connect(governor.gate, turbine.gate)
@@ -115,7 +114,6 @@ governor command equal to the initial gate opening.
     systems = [
         upstream,
         headrace,
-        surge,
         penstock,
         turbine,
         tailwater,

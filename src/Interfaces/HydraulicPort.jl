@@ -11,10 +11,14 @@ Variables
 The connector contains no constitutive physics. Conservation and constitutive
 relations belong to the components that use the port.
 """
-@connector function HydraulicPort(; name)
-    vars = @variables begin
-        H(t), [guess = 0.0, description = "Hydraulic head [m]"]
-        Q(t), [connect = Flow, guess = 0.0, description = "Volumetric flow into component [m^3/s]"]
-    end
-    return System(Equation[], t, vars, []; name = name)
+function HydraulicPort(; name)
+    @variables H(t), Q(t) [connect = Flow]
+    return System(
+        Equation[],
+        t,
+        [H, Q],
+        [];
+        name,
+        connector_type = ModelingToolkit.RegularConnector(),
+    )
 end
