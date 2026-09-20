@@ -649,3 +649,43 @@ Every entry in the literature model-family catalogue now has:
 The report set runs from **Report 11 (HydraulicPort)** through **Report 57 (EMTGrid)**.
 
 See `docs/model_reports/README.md` for the complete index.
+
+
+## SMIB measurement and control milestone
+
+The `smib-measurement-control` branch adds the feedback layer needed for a
+closed-loop single-machine infinite-bus study.
+
+```text
+Measurements/
+  FrequencySensor.jl
+  PowerMeasurement.jl
+
+Controls/
+  DroopGovernor.jl
+  GateServo.jl
+  PIController.jl
+  MechanicalTorqueActuator.jl
+
+Electrical/
+  Generators/ClassicalGeneratorRotor.jl
+  Grids/SMIBNetwork.jl
+
+Systems/
+  ReducedSMIB.jl
+  HydroSMIB.jl
+```
+
+The first runnable chain is:
+
+```text
+FrequencySensor
+  -> DroopGovernor
+  -> GateServo
+  -> TorqueActuator
+  -> LumpedShaft
+  -> ClassicalGeneratorRotor
+  -> SMIBNetwork
+```
+
+Report: `docs/report_58_smib_measurement_control.tex`
