@@ -230,25 +230,31 @@ end
 @testset "Complete reduced MTK hydropower SMIB" begin
     @named plant = ReducedSMIB()
 
-    @test length(ModelingToolkit.get_systems(plant)) == 11
+    @test length(ModelingToolkit.get_systems(plant)) == 10
 
     compiled = mtkcompile(plant)
     @test length(unknowns(compiled)) > 0
 
     prob = ODEProblem(compiled, [], (0.0, 1.0))
-    sol = solve(prob, Rodas5P(); abstol = 1e-8, reltol = 1e-8)
+    # The surge-free reduced model supplies a consistent steady-state vector;
+    # skip the overdetermined symbolic initialization pass.
+    sol = solve(
+        prob,
+        Rodas5P();
+        abstol = 1e-8,
+        reltol = 1e-8,
+        initializealg = SciMLBase.NoInit(),
+    )
 
     @test SciMLBase.successful_retcode(sol.retcode)
 
     f_end = sol[compiled.frequency_sensor.f][end]
     Q_end = sol[compiled.turbine.Q][end]
-    Hs_end = sol[compiled.surge.H][end]
     y_end = sol[compiled.governor.y][end]
     Pe_end = sol[compiled.generator.Pe][end]
 
     @test isapprox(f_end, 50.0; atol = 1e-5, rtol = 1e-7)
     @test isapprox(Q_end, 10.0; atol = 1e-5, rtol = 1e-7)
-    @test isapprox(Hs_end, 120.0; atol = 1e-5, rtol = 1e-7)
     @test isapprox(y_end, 1.0; atol = 1e-5, rtol = 1e-7)
     @test isapprox(Pe_end / 1e6, 8.65242; atol = 1e-4, rtol = 1e-6)
 end
