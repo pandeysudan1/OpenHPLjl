@@ -8,7 +8,14 @@ Variables
 - `Q(t)`: volumetric flow [m^3/s], positive into a component and marked
   `connect = Flow`, so connected flows sum to zero.
 """
-@connector HydraulicPort begin
-    H(t), [description = "Hydraulic head [m]"]
-    Q(t), [connect = Flow, description = "Volumetric flow into component [m^3/s]"]
+function HydraulicPort(; name)
+    @variables H(t), Q(t) [connect = Flow]
+    return System(
+        Equation[],
+        t,
+        [H, Q],
+        [];
+        name,
+        connector_type = ModelingToolkit.RegularConnector(),
+    )
 end
