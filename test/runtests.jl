@@ -191,3 +191,37 @@ end
     @test isapprox(expected_omega, 100 * pi; atol = 1e-12)
     @test length(equations(grid)) == 1
 end
+
+
+@testset "State-of-the-art connector workflow" begin
+    @named hydraulic = HydraulicPort()
+    @named rotational = RotationalPort()
+    @named electrical = ElectricalPowerPort()
+    @named socket = SignalSocket()
+    @named plug = SignalPlug()
+
+    @test length(unknowns(hydraulic)) == 2
+    @test length(unknowns(rotational)) == 2
+    @test length(unknowns(electrical)) == 2
+    @test length(unknowns(socket)) == 1
+    @test length(unknowns(plug)) == 1
+end
+
+@testset "Signal-ready turbine composition" begin
+    @named gate_source = ConstantSignal(u0 = 0.5)
+    @named turbine = ControlledGateTurbine(eta = 0.90, Kq = 1.0)
+
+    @test length(equations(gate_source)) == 1
+    @test length(equations(turbine)) == 6
+
+    connection_eqs = [
+        connect(gate_source.y, turbine.gate)
+    ]
+    @named model = System(
+        connection_eqs,
+        ModelingToolkit.t_nounits;
+        systems = [gate_source, turbine],
+    )
+
+    @test length(ModelingToolkit.get_systems(model)) == 2
+end
