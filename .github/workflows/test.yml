@@ -9,6 +9,7 @@ on:
       - friction-models
       - shaft-generator-grid-models
       - literature-model-families
+      - smib-measurement-control
   pull_request:
     branches:
       - main
