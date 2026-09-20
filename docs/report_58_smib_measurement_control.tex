@@ -1,0 +1,211 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=20mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,hyperref,microtype}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\title{Report 58 - Measurement, Control, and Reduced SMIB Assembly}
+\author{Madhusudhan Pandey}
+\date{20 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This report introduces the measurement and control layer required to close the hydropower frequency-control loop in OpenHPLjl. It adds scalar signal connectors, ideal frequency measurement, primary droop control, a first-order gate servo, PI control, a torque actuator, a classical rotor-angle model, and a single-machine infinite-bus network. These components are assembled into a reduced closed-loop SMIB for immediate simulation, while the full hydraulic-to-grid SMIB architecture is recorded as the next promotion target.
+\end{abstract}
+
+\section{Updated Engineering Context}
+The core physical chain is
+\[
+\text{Reservoir}\rightarrow\text{Waterway}\rightarrow\text{Turbine}
+\rightarrow\text{Shaft}\rightarrow\text{Generator}\rightarrow\text{Grid}.
+\]
+A runnable frequency-control study additionally needs
+\[
+\boxed{\text{measurement}\rightarrow\text{controller}\rightarrow\text{actuator}}
+\]
+around the plant. Hydropower transient-droop governors commonly act on guide-vane servomotors and use speed/frequency feedback \cite{OpenHPLThesis}. Open power-system libraries likewise expose governor models with speed input, power/mechanical command output, lags, lead-lag blocks, and limiters \cite{GOVPSAT,TGOV1}.
+
+\section{Generalized Concept Model}
+The closed loop is
+\[
+\omega \rightarrow \text{FrequencySensor}
+\rightarrow \text{DroopGovernor}
+\rightarrow \text{GateServo}
+\rightarrow \text{mechanical input}
+\rightarrow \text{shaft/generator/grid}.
+\]
+
+The first reduced SMIB is
+\[
+\boxed{
+\text{Droop}\rightarrow\text{Servo}\rightarrow\text{Torque}
+\rightarrow\text{Shaft}\rightarrow\text{Classical Rotor}
+\rightarrow\text{SMIB Network}
+}.
+\]
+
+\section{Measurement Components}
+A scalar \texttt{SignalPort} carries measured or commanded values.
+
+For the ideal speed sensor,
+\[
+y_\omega=\omega,
+\qquad
+\tau_{\rm sensor}=0.
+\]
+
+The zero-torque condition prevents the sensor from changing the mechanical dynamics.
+
+\section{Control Components}
+The primary droop law is
+\[
+\boxed{
+y_{\rm cmd}
+=
+y_0-
+\frac{\omega/\omega_{\rm ref}-1}{R}
+}
+\]
+so a positive frequency deviation closes the guide vanes.
+
+The first-order servomotor is
+\[
+\boxed{
+T_g\dot y=y_{\rm cmd}-y
+}.
+\]
+
+A generic PI controller is also provided:
+\[
+e=r-y,
+\qquad
+\dot x=e,
+\qquad
+u=k_p e+k_i x.
+\]
+
+\section{Mechanical Actuation}
+The reduced SMIB uses a torque actuator
+\[
+\tau_m=K_\tau y.
+\]
+Because rotational-port torque is defined positive into a component, a torque source uses the opposite connector sign so the shaft receives positive driving torque.
+
+\section{Classical Generator and SMIB Network}
+Mechanical inertia is carried by the shaft, avoiding duplicated inertia.
+
+The generator rotor angle follows
+\[
+\boxed{
+\dot\delta=\omega-\omega_s
+}.
+\]
+
+The classical lossless network is
+\[
+\boxed{
+P_e=P_{\max}\sin(\delta-\delta_g)+P_{\rm dist}
+}.
+\]
+
+The generator consumes mechanical torque
+\[
+\tau_e=\frac{P_e}{\omega}.
+\]
+
+The shaft equation remains
+\[
+J\dot\omega=\tau_m-\tau_e-D(\omega-\omega_0).
+\]
+
+\section{Reduced SMIB Implementation}
+The source assembly is
+\begin{center}
+\texttt{src/Systems/ReducedSMIB.jl}
+\end{center}
+and contains
+\begin{itemize}
+\item LumpedShaft,
+\item FrequencySensor,
+\item DroopGovernor,
+\item GateServo,
+\item MechanicalTorqueActuator,
+\item ClassicalGeneratorRotor,
+\item SMIBNetwork.
+\end{itemize}
+
+The default electrical transfer limit is selected to make the initial operating point approximately balanced:
+\[
+P_{\max}
+=
+\frac{K_\tau y_0\omega_0}{\sin\delta_0}.
+\]
+
+\section{Numerical Experiment / Validation}
+The package test applies a nonzero electrical disturbance \(P_{\rm dist}\) and solves the reduced SMIB for five seconds.
+
+Validation checks include:
+\begin{itemize}
+\item successful ODE/DAE solution,
+\item finite shaft speed,
+\item finite rotor angle,
+\item finite guide-vane/servo state,
+\item nonzero frequency response,
+\item nonzero governor/servo response.
+\end{itemize}
+
+\section{Full Hydro-SMIB Assembly}
+The next complete plant assembly is
+\[
+\boxed{
+\begin{aligned}
+&\text{Reservoir}\rightarrow\text{RigidPipe}\rightarrow\text{SurgeTank}
+\rightarrow\text{Penstock}\\
+&\rightarrow\text{Controlled Turbine}\rightarrow\text{Shaft}
+\rightarrow\text{Generator}\rightarrow\text{SMIB Grid}
+\end{aligned}}
+\]
+with
+\[
+\omega\rightarrow\text{sensor}\rightarrow\text{governor}\rightarrow\text{servo}
+\rightarrow y.
+\]
+
+The remaining technical tasks are:
+\begin{enumerate}
+\item promote turbine guide-vane opening from a parameter to a signal input;
+\item expose turbine mechanical torque through \texttt{RotationalPort};
+\item resolve consistent hydraulic steady-state initialization;
+\item add guide-vane position/rate limits;
+\item add load/fault/step disturbance components;
+\item validate the full assembly against a known operating point.
+\end{enumerate}
+
+\section{Expected Outputs}
+The reduced and later full SMIB should expose
+\[
+f(t),\;\omega(t),\;\delta(t),\;P_m(t),\;P_e(t),\;y(t),
+\]
+and, for the hydraulic plant,
+\[
+Q(t),\;H(t),\;H_s(t),\;P_{\rm turbine}(t).
+\]
+
+\section{Engineering Interpretation}
+This milestone separates the feedback architecture from component fidelity. The same measurement and governor components can later control a lookup-table Francis turbine, detailed waterway, and higher-order synchronous generator without redesigning the control loop.
+
+\section*{Conclusion}
+OpenHPLjl now has the first measurement-control architecture required for an SMIB. The reduced SMIB is the immediate CI target. Once it is structurally stable, the same loop can be moved onto the complete nonlinear hydropower plant.
+
+\begin{thebibliography}{9}
+\bibitem{OpenHPLThesis}
+OpenHPL thesis resources: hydropower governing systems and transient droop.
+\url{https://build.openmodelica.org/Documentation/OpenHPL%203.0.1/Resources/Documents/Sharefi2011.pdf}
+
+\bibitem{GOVPSAT}
+iPSL/OpenModelica GOVPSAT1 turbine-governor documentation.
+\url{https://build.openmodelica.org/Documentation/iPSL.Electrical.Controls.Eurostag.govpsat1.html}
+
+\bibitem{TGOV1}
+iPSL/OpenModelica TGOV1 turbine-governor documentation.
+\url{https://build.openmodelica.org/Documentation/iPSL.Electrical.Controls.Eurostag.tgov1.html}
+\end{thebibliography}
+\end{document}

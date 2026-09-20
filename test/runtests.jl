@@ -214,3 +214,48 @@ end
     f = blended_friction_factor(3000.0; epsilon = 1e-4, D = 1.0)
     @test f > 0
 end
+
+
+@testset "SMIB measurement and control components" begin
+    @named sensor = FrequencySensor()
+    @named governor = DroopGovernor(omega_ref = 2*pi*50, y0 = 0.5, R = 0.05)
+    @named servo = GateServo(Tg = 0.2, y0 = 0.5)
+    @named actuator = MechanicalTorqueActuator()
+    @named rotor = ClassicalGeneratorRotor(omega_s = 2*pi*50, delta0 = 0.2)
+    @named network = SMIBNetwork(Pmax = 1.0e6)
+
+    @test length(equations(sensor)) == 2
+    @test length(equations(governor)) == 1
+    @test length(equations(servo)) == 2
+    @test length(equations(actuator)) == 1
+    @test length(equations(rotor)) == 3
+    @test length(equations(network)) == 1
+end
+
+@testset "ReducedSMIB closed-loop simulation" begin
+    @named smib = ReducedSMIB(
+        J = 1.0e5,
+        damping = 2.0e3,
+        R = 0.05,
+        Tg = 0.2,
+        y0 = 0.5,
+        Ktau = 2.0e3,
+        delta0 = 0.2,
+        Pdist = 2.0e4,
+    )
+
+    compiled = mtkcompile(smib)
+    prob = ODEProblem(compiled, [], (0.0, 5.0))
+    sol = solve(prob, Tsit5(); abstol = 1e-8, reltol = 1e-8)
+
+    omega = sol[compiled.shaft.omega]
+    gate = sol[compiled.servo.gate]
+    delta = sol[compiled.generator.rotor_angle]
+
+    @test sol.retcode == ReturnCode.Success
+    @test all(isfinite, omega)
+    @test all(isfinite, gate)
+    @test all(isfinite, delta)
+    @test maximum(abs.(omega .- 2*pi*50)) > 0
+    @test maximum(abs.(gate .- 0.5)) > 0
+end
