@@ -20,7 +20,7 @@ shaft model.
     eqs = [
         D(rotor_angle) ~ shaft.omega - omega_s
         delta.u ~ rotor_angle
-        shaft.tau ~ -Pe.u / shaft.omega
+        shaft.tau ~ Pe.u / shaft.omega
     ]
     System(eqs, t, [rotor_angle], [omega_s]; systems=[shaft,Pe,delta], name=name)
 end
