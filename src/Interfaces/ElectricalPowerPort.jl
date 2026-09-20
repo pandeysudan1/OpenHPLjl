@@ -1,20 +1,20 @@
 """
     ElectricalPowerPort
 
-Reduced electrical power/frequency connector for electromechanical studies.
+Reduced acausal active-power/frequency connector for electromechanical studies.
 
 Variables
-- omega(t): electrical angular frequency [rad/s], across variable.
-- P(t): active power [W], flow variable positive into a component.
+- `omega(t)`: electrical angular frequency [rad/s], potential/across variable.
+- `P(t)`: active power [W], positive into a component and marked as a flow variable.
+
+This is intentionally a reduced connector for frequency-active-power studies;
+voltage, reactive power and phase-angle models belong in higher-fidelity
+electrical interfaces.
 """
-function ElectricalPowerPort(; name)
-    @variables omega(t), P(t) [connect = Flow]
-    return System(
-        Equation[],
-        t,
-        [omega, P],
-        [];
-        name,
-        connector_type = ModelingToolkit.RegularConnector(),
-    )
+@connector function ElectricalPowerPort(; name)
+    vars = @variables begin
+        omega(t), [guess = 2 * pi * 50, description = "Electrical angular frequency [rad/s]"]
+        P(t), [connect = Flow, guess = 0.0, description = "Active power into component [W]"]
+    end
+    return System(Equation[], t, vars, []; name = name)
 end

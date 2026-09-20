@@ -191,3 +191,64 @@ end
     @test isapprox(expected_omega, 100 * pi; atol = 1e-12)
     @test length(equations(grid)) == 1
 end
+
+
+@testset "State-of-the-art connector workflow" begin
+    @named hydraulic = HydraulicPort()
+    @named rotational = RotationalPort()
+    @named electrical = ElectricalPowerPort()
+    @named socket = SignalSocket()
+    @named plug = SignalPlug()
+
+    @test length(unknowns(hydraulic)) == 2
+    @test length(unknowns(rotational)) == 2
+    @test length(unknowns(electrical)) == 2
+    @test length(unknowns(socket)) == 1
+    @test length(unknowns(plug)) == 1
+end
+
+@testset "Signal-ready turbine composition" begin
+    @named gate_source = ConstantSignal(u0 = 0.5)
+    @named turbine = ControlledGateTurbine(eta = 0.90, Kq = 1.0)
+
+    @test length(equations(gate_source)) == 1
+    @test length(equations(turbine)) == 6
+
+    connection_eqs = [
+        connect(gate_source.y, turbine.gate)
+    ]
+    @named model = System(
+        connection_eqs,
+        ModelingToolkit.t_nounits;
+        systems = [gate_source, turbine],
+    )
+
+    @test length(ModelingToolkit.get_systems(model)) == 2
+end
+
+
+@testset "Complete reduced MTK hydropower SMIB" begin
+    @named plant = ReducedSMIB()
+
+    @test length(ModelingToolkit.get_systems(plant)) == 11
+
+    compiled = mtkcompile(plant)
+    @test length(unknowns(compiled)) > 0
+
+    prob = ODEProblem(compiled, [], (0.0, 1.0))
+    sol = solve(prob, Rodas5P(); abstol = 1e-8, reltol = 1e-8)
+
+    @test SciMLBase.successful_retcode(sol.retcode)
+
+    f_end = sol[compiled.frequency_sensor.f][end]
+    Q_end = sol[compiled.turbine.Q][end]
+    Hs_end = sol[compiled.surge.H][end]
+    y_end = sol[compiled.governor.y][end]
+    Pe_end = sol[compiled.generator.Pe][end]
+
+    @test isapprox(f_end, 50.0; atol = 1e-5, rtol = 1e-7)
+    @test isapprox(Q_end, 10.0; atol = 1e-5, rtol = 1e-7)
+    @test isapprox(Hs_end, 120.0; atol = 1e-5, rtol = 1e-7)
+    @test isapprox(y_end, 1.0; atol = 1e-5, rtol = 1e-7)
+    @test isapprox(Pe_end / 1e6, 8.65242; atol = 1e-4, rtol = 1e-6)
+end

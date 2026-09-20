@@ -1,0 +1,49 @@
+name: Build Complete MTK SMIB Report PDF
+
+on:
+  push:
+    branches:
+      - refactor/state-of-the-art-workflow
+    paths:
+      - docs/report_09_complete_mtk_smib.tex
+      - .github/workflows/build-complete-smib-report.yml
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - docs/report_09_complete_mtk_smib.tex
+      - .github/workflows/build-complete-smib-report.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip pdf]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout report branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/state-of-the-art-workflow
+          fetch-depth: 0
+
+      - name: Compile LaTeX report
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: report_09_complete_mtk_smib.tex
+          working_directory: docs
+
+      - name: Commit compiled PDF
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/report_09_complete_mtk_smib.pdf
+          if git diff --cached --quiet; then
+            echo "PDF unchanged"
+          else
+            git commit -m "Build Report 9 complete MTK SMIB PDF [skip pdf]"
+            git push origin refactor/state-of-the-art-workflow
+          fi

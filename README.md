@@ -536,3 +536,43 @@ See:
 
 The next milestone is **Connected Plant Baseline**: subsystem assemblies,
 initialization, and the first complete hydropower SMIB.
+
+
+## Refactoring milestone — state-of-the-art workflow
+
+The package now separates three concerns explicitly:
+
+```text
+physical connectors  ->  physical components  ->  causal signals/control
+```
+
+The refactoring adds explicit ModelingToolkit connector definitions for the
+hydraulic, rotational and reduced electrical interfaces, plus `SignalSocket`
+and `SignalPlug` for control/measurement signals.
+
+A new signal-ready turbine path is available:
+
+```text
+ConstantSignal / Governor / AGC
+              |
+              v
+     ControlledGateTurbine
+```
+
+The previous `SimpleGateTurbine` remains available for compatibility.
+
+Development and verification now follow:
+
+```text
+physics
+ -> connector
+ -> component
+ -> composition
+ -> mtkcompile
+ -> initialization
+ -> numerical problem
+ -> simulation
+ -> analytical/composition/CI verification
+```
+
+See `docs/refractoring_state_of_the_art_workflow.md` for the full method.
