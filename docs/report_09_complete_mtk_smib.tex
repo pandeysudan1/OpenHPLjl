@@ -1,0 +1,387 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=24mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,array,hyperref,listings,microtype}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,pdftitle={Complete MTK Hydropower SMIB Model}}
+\lstdefinelanguage{Julia}{keywords={using,begin,end,function,return,if,else,elseif,for,while,module,export,include,struct},sensitive=true,comment=[l]\#,morestring=[b]"}
+\lstset{language=Julia,basicstyle=\ttfamily\small,breaklines=true,frame=single,columns=fullflexible,showstringspaces=false}
+
+\title{Complete MTK Hydropower SMIB Model\\\large Refractoring based on state-of-the art work flow}
+\author{OpenHPLjl development note}
+\date{20 September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document records the package commit that turns the OpenHPLjl component catalogue into a complete reduced hydropower single-machine infinite-bus (SMIB) model in ModelingToolkit.jl. The model couples hydraulic storage and water-column dynamics, turbine power conversion, shaft inertia, synchronous-generator angle dynamics, an infinite grid, frequency measurement, and a droop governor. The implementation follows a layered workflow: physical law, connector semantics, reusable component, hierarchical composition, structural compilation, consistent initialization, numerical simulation, and verification.
+\end{abstract}
+
+\section{Commit objective}
+The objective of this commit is to move from individually tested components to one connected nonlinear plant model that can be compiled and simulated as a single ModelingToolkit system. The model is deliberately reduced, but every major energy domain required for governor and frequency-response studies is represented explicitly.
+
+The top-level model is exported as \texttt{ReducedSMIB}. It is intended to be the baseline system for subsequent guide-vane disturbance tests, governor tuning, AGC extensions, FCR studies, operating-point linearization, Bode/Nyquist analysis, and plant-specific parameterization.
+
+\section{System architecture}
+The physical and control architecture is
+
+\begin{verbatim}
+Upstream reservoir
+      |
+      v
+   Headrace
+      |
+      v
+  Surge tank
+      |
+      v
+   Penstock
+      |
+      v
+Shaft-coupled turbine ---> Shaft ---> SMIB generator ---> Infinite grid
+          ^                   |
+          |                   v
+          +--- Droop governor <- Frequency sensor
+\end{verbatim}
+
+The system contains eleven named subsystems:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Subsystem & Role \\
+\midrule
+\texttt{upstream} & constant-head upstream boundary \\
+\texttt{headrace} & hydraulic inertia / momentum balance \\
+\texttt{surge} & local hydraulic storage \\
+\texttt{penstock} & downstream water-column inertia \\
+\texttt{turbine} & hydraulic-to-mechanical conversion \\
+\texttt{tailwater} & constant-head downstream boundary \\
+\texttt{shaft} & rotating inertia and damping \\
+\texttt{generator} & SMIB electromechanical conversion \\
+\texttt{grid} & infinite-frequency electrical boundary \\
+\texttt{frequency\_sensor} & non-loading speed measurement \\
+\texttt{governor} & first-order droop control \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Connector organization}
+The implementation separates physical connectors from causal control signals.
+
+\subsection{Hydraulic connector}
+The hydraulic interface uses head as the potential variable and volumetric flow as the conserved flow variable:
+\[
+H \qquad Q.
+\]
+The sign convention is flow positive into a component. Connected hydraulic flow variables therefore sum to zero.
+
+\subsection{Rotational connector}
+The mechanical interface uses
+\[
+\omega \qquad \tau,
+\]
+where angular speed is the potential variable and torque is the conserved flow variable.
+
+\subsection{Electrical power connector}
+The reduced grid interface uses
+\[
+\omega_e \qquad P,
+\]
+where electrical angular frequency is the across variable and active power is the conserved flow variable.
+
+\subsection{Signal connectors}
+Control and measurement signals use causal connectors rather than physical flow/potential semantics:
+\begin{verbatim}
+SignalPlug  ->  SignalSocket
+   output          input
+\end{verbatim}
+This allows the turbine gate command to be driven by a governor, AGC block, test signal, or other controller without changing the turbine physics.
+
+\section{Hydraulic model}
+\subsection{Headwater and tailwater}
+The two reservoir boundaries prescribe hydraulic head,
+\[
+H_{up}=120\;\mathrm{m}, \qquad H_{down}=20\;\mathrm{m}
+\]
+for the default case, while the connected network determines boundary flows.
+
+\subsection{Rigid water columns}
+Both headrace and penstock use
+\[
+\dot Q =
+\frac{gA}{L}
+\left(
+H_{in}-H_{out}-h_f(Q)
+\right).
+\]
+The complete-model baseline uses \texttt{:none} friction so that the default operating point can be constructed exactly before additional hydraulic-loss complexity is introduced.
+
+\subsection{Surge tank}
+The surge tank follows
+\[
+A_s\dot H_s = Q_{in}+Q_{out}.
+\]
+At the nominal condition, equal steady flow passes through the headrace and penstock, so \(\dot H_s=0\).
+
+\section{Turbine and shaft coupling}
+The new \texttt{ShaftCoupledTurbine} closes the hydraulic-mechanical link.
+
+Turbine head is
+\[
+H_t=H_{in}-H_{out},
+\]
+guide-vane opening is supplied by a causal input,
+\[
+y=u_{gate},
+\]
+and the baseline flow law is
+\[
+Q=K_q y\sqrt{H_t}.
+\]
+
+Mechanical power is
+\[
+P_h=\rho g\eta_t QH_t.
+\]
+With the package convention that torque is positive into a component, the generating turbine exports mechanical power through
+\[
+\tau_t\omega=-P_h.
+\]
+
+The shaft supplies the rotational inertia:
+\[
+J\dot\omega =
+\tau_{drive}
++
+\tau_{load}
+-
+D(\omega-\omega_0).
+\]
+
+\section{Reduced SMIB generator}
+The new \texttt{SMIBGenerator} adds a rotor-angle state relative to the infinite bus:
+\[
+\dot\delta=\omega_m-\omega_g.
+\]
+
+Mechanical and electrical power satisfy
+\[
+P_m=\tau_g\omega_m,
+\]
+\[
+P_e=\eta_gP_m,
+\]
+and the reduced infinite-bus transfer relation is
+\[
+P_e=P_{max}\sin\delta.
+\]
+
+Generated electrical power leaves the generator component:
+\[
+P_{grid}=-P_e.
+\]
+
+Rotational inertia remains in \texttt{LumpedShaft}; it is not duplicated in the generator.
+
+\section{Measurement and governor loop}
+The \texttt{FrequencySensor} reads shaft speed without mechanically loading the shaft:
+\[
+\tau_{sensor}=0,
+\]
+and reports
+\[
+f=\frac{\omega}{2\pi}.
+\]
+
+The droop governor computes
+\[
+y_{cmd}
+=
+y_0+\frac{f_{ref}-f}{R},
+\]
+and applies first-order actuator/governor dynamics:
+\[
+T_g\dot y=y_{cmd}-y.
+\]
+
+The complete feedback path is therefore
+\[
+\omega
+\rightarrow
+f
+\rightarrow
+\text{droop governor}
+\rightarrow
+y
+\rightarrow
+Q
+\rightarrow
+P_h
+\rightarrow
+\omega.
+\]
+
+\section{Consistent default operating point}
+The default values used by \texttt{ReducedSMIB} are:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Quantity & Symbol & Default \\
+\midrule
+Upstream head & \(H_{up}\) & 120 m \\
+Tailwater head & \(H_{down}\) & 20 m \\
+Initial flow & \(Q_0\) & 10 m$^3$/s \\
+Gate opening & \(y_0\) & 1.0 \\
+Grid frequency & \(f_0\) & 50 Hz \\
+Turbine efficiency & \(\eta_t\) & 0.90 \\
+Generator efficiency & \(\eta_g\) & 0.98 \\
+Generator transfer limit & \(P_{max}\) & 10 MW \\
+Surge area & \(A_s\) & 500 m$^2$ \\
+Governor time constant & \(T_g\) & 0.2 s \\
+Droop coefficient & \(R\) & 2.5 Hz/pu gate \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The initial turbine head is
+\[
+H_{t0}=H_{up}-H_{down}=100\;\mathrm{m}.
+\]
+
+The turbine coefficient is constructed from the requested nominal flow,
+\[
+K_{q0}
+=
+\frac{Q_0}
+{y_0\sqrt{H_{t0}}}.
+\]
+
+Initial turbine power is
+\[
+P_{h0}
+=
+\rho g\eta_tQ_0H_{t0}
+=
+8.829\;\mathrm{MW}.
+\]
+
+Initial electrical power is
+\[
+P_{e0}
+=
+\eta_gP_{h0}
+=
+8.65242\;\mathrm{MW}.
+\]
+
+The initial rotor angle is computed from
+\[
+\delta_0
+=
+\sin^{-1}
+\left(
+\frac{P_{e0}}{P_{max}}
+\right),
+\]
+instead of being selected as an arbitrary guess.
+
+At the default condition the governor sees 50 Hz and returns \(y=y_0\), water-column flows are equal, the surge level is stationary, and mechanical/electrical power are balanced.
+
+\section{Top-level ModelingToolkit composition}
+The complete system is assembled from components and \texttt{connect} statements. The top-level system does not rewrite the internal equations of individual components.
+
+\begin{lstlisting}
+@named plant = ReducedSMIB()
+
+compiled = mtkcompile(plant)
+
+prob = ODEProblem(
+    compiled,
+    [],
+    (0.0, 5.0),
+)
+
+sol = solve(
+    prob,
+    Rodas5P();
+    abstol = 1e-8,
+    reltol = 1e-8,
+)
+\end{lstlisting}
+
+The workflow deliberately preserves two model views:
+\begin{itemize}
+\item the hierarchical uncompiled system for component, port, signal, and future analysis-point inspection;
+\item the compiled system for structural simplification, initialization, and numerical solution.
+\end{itemize}
+
+\section{Files introduced by the commit}
+The principal new implementation files are:
+
+\begin{verbatim}
+src/Measurements/FrequencySensor.jl
+src/Controls/DroopGovernor.jl
+src/Turbines/ShaftCoupledTurbine.jl
+src/Electrical/Generators/SMIBGenerator.jl
+src/Systems/ReducedSMIB.jl
+examples/reduced_smib.jl
+\end{verbatim}
+
+The package entry point is updated to include and export these components, and \texttt{test/runtests.jl} is extended with a complete plant compile-and-simulate test.
+
+\section{Verification strategy}
+The commit follows a verification ladder rather than only checking whether Julia code parses.
+
+\subsection*{Component verification}
+Existing tests continue to check reservoir mass balance, rigid-pipe momentum response, surge-tank storage, friction laws, shaft acceleration, and generator algebra.
+
+\subsection*{Composition verification}
+The top-level model checks that all eleven named systems are present and connected through public interfaces.
+
+\subsection*{Structural compilation}
+The hierarchical plant is passed through \texttt{mtkcompile}, transforming the connected equations into a reduced numerical system.
+
+\subsection*{Numerical equilibrium test}
+The complete model is solved and checked near
+\[
+f=50\;\mathrm{Hz},
+\quad
+Q=10\;\mathrm{m^3/s},
+\quad
+H_s=120\;\mathrm{m},
+\quad
+y=1.0,
+\]
+with
+\[
+P_e\approx8.65242\;\mathrm{MW}.
+\]
+
+\section{What this commit enables}
+The package now has one equation-based nonlinear model spanning hydraulics, mechanics, electrical dynamics, measurement, and primary control.
+
+The immediate study sequence is:
+\begin{enumerate}
+\item apply a gate, reference, or load disturbance after a steady interval;
+\item inspect headrace and penstock flow transients;
+\item inspect surge-tank head oscillation;
+\item inspect turbine mechanical and generator electrical power;
+\item inspect shaft frequency and governor response;
+\item add actuator limits and transient droop;
+\item introduce plant-specific parameters and turbine characteristic maps;
+\item add analysis points for linearization and frequency-domain analysis;
+\item extend the control hierarchy toward AGC and FCR studies.
+\end{enumerate}
+
+\section{Current model boundaries}
+This is a reduced baseline rather than the final high-fidelity plant model. Planned extensions include hydraulic losses at the operating point, turbine hill-chart interpolation, gate saturation and rate limits, elastic penstock/water hammer, detailed synchronous-machine voltage/reactive-power dynamics, and plant-specific governor structure.
+
+The value of this commit is that these refinements can now be added one subsystem at a time without changing the complete-system workflow.
+
+\section{Conclusion}
+This commit establishes the first complete ModelingToolkit hydropower SMIB in OpenHPLjl. It converts the package from a collection of reusable physical components into a connected, initialized, compilable, and simulatable nonlinear plant model with closed-loop droop control. The architecture is now suitable as the base for transient studies, control development, system identification, FCR workflows, and later plant-specific validation.
+
+\end{document}
