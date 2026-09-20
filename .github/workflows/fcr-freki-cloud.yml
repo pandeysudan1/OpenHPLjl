@@ -1,0 +1,68 @@
+name: Run FCR FREKI Julia tutorial
+
+on:
+  push:
+    branches:
+      - fcr-freki-statnett-tutorial
+    paths:
+      - 'src/FCR/**'
+      - 'src/OpenHPLjl.jl'
+      - 'examples/fcr_freki_cloud.jl'
+      - '.github/workflows/fcr-freki-cloud.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/FCR/**'
+      - 'src/OpenHPLjl.jl'
+      - 'examples/fcr_freki_cloud.jl'
+      - '.github/workflows/fcr-freki-cloud.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: fcr-freki-cloud-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-fcr-freki:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      JULIA_PKG_PRECOMPILE_AUTO: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Julia 1.12
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+
+      - name: Cache Julia depot
+        uses: julia-actions/cache@v2
+
+      - name: Instantiate latest compatible environment
+        shell: bash
+        run: |
+          julia --project=. --startup-file=no -e 'using Pkg; Pkg.update(); Pkg.instantiate(); Pkg.precompile(); Pkg.status()'
+
+      - name: Run FCR + FREKI tutorial simulations
+        shell: bash
+        run: |
+          time julia --project=. --startup-file=no examples/fcr_freki_cloud.jl
+
+      - name: Show generated summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/fcr_freki/RESULTS.md ]; then
+            cat artifacts/fcr_freki/RESULTS.md
+          fi
+
+      - name: Upload FCR FREKI results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fcr-freki-results
+          path: artifacts/fcr_freki/
+          if-no-files-found: warn
